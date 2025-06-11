@@ -57,5 +57,4 @@ st.write("""
 - ALMI (Appendicular Lean Mass Index) is based on lean mass in limbs, estimated here as ~75% of total lean mass.
 - Calculations use height to convert ALMI to lean mass (ALM = ALMI * height²).
 - Imperial height inputs are converted to metric (1 inch = 0.0254 m).
-- Consult a professional for precise ALMI measurements (e.g., via DEXA scan) and training plans.
 """)

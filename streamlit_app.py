@@ -14,6 +14,10 @@ def calculate_ffmi_from_weight_bf(weight_kg, body_fat_pct, height_m):
     fat_free_mass = weight_kg * (1 - body_fat_pct / 100)
     return fat_free_mass / (height_m ** 2)
 
+def kg_to_lbs(kg):
+    """Convert kilograms to pounds"""
+    return kg * 2.20462
+
 def main():
     st.title("Body Composition Calculator")
     st.write("Calculate lean mass gains needed to reach target ALMI or FFMI values")
@@ -127,17 +131,17 @@ def main():
     with col1:
         st.write("**Current:**")
         st.write(f"{metric_name}: {current_metric:.2f} kg/m²")
-        st.write(f"{mass_unit}: {current_mass:.1f} kg")
+        st.write(f"{mass_unit}: {current_mass:.1f} kg ({kg_to_lbs(current_mass):.1f} lbs)")
     
     with col2:
         st.write("**Target:**")
         st.write(f"{metric_name}: {target_metric:.2f} kg/m²")
-        st.write(f"{mass_unit}: {target_mass:.1f} kg")
+        st.write(f"{mass_unit}: {target_mass:.1f} kg ({kg_to_lbs(target_mass):.1f} lbs)")
     
     with col3:
         st.write("**To Gain:**")
         if mass_needed > 0:
-            st.write(f"Lean Mass: **{mass_needed:.1f} kg**")
+            st.write(f"Lean Mass: **{mass_needed:.1f} kg ({kg_to_lbs(mass_needed):.1f} lbs)**")
             st.write(f"{metric_name} Increase: {target_metric - current_metric:.2f} kg/m²")
         else:
             st.write("Target already reached!")
@@ -168,67 +172,12 @@ def main():
             years = months / 12
             timeline_data.append({
                 "Experience Level": level,
-                "Monthly Rate (kg)": f"{monthly_gain:.2f}",
+                "Monthly Rate": f"{monthly_gain:.2f} kg ({kg_to_lbs(monthly_gain):.2f} lbs)",
                 "Timeline": f"{months:.1f} months ({years:.1f} years)"
             })
         
         df = pd.DataFrame(timeline_data)
         st.dataframe(df, use_container_width=True)
-    
-    # Goal nomogram
-    st.subheader("Goal Setting Nomogram")
-    
-    if calc_type.startswith("ALMI"):
-        if gender == "Male":
-            goals = {
-                "Minimum Health": 7.0,
-                "Good": 8.0,
-                "Very Good": 9.0,
-                "Excellent": 10.0
-            }
-        else:
-            goals = {
-                "Minimum Health": 5.5,
-                "Good": 6.5,
-                "Very Good": 7.5,
-                "Excellent": 8.5
-            }
-        
-        st.write("**ALMI Goal Targets:**")
-        for goal, value in goals.items():
-            mass_for_goal = calculate_alm_from_almi(value, height_m)
-            gain_needed = max(0, mass_for_goal - current_mass)
-            
-            if gain_needed > 0:
-                st.write(f"- {goal}: {value:.1f} kg/m² (need +{gain_needed:.1f} kg)")
-            else:
-                st.write(f"- {goal}: {value:.1f} kg/m² ✓")
-    
-    else:  # FFMI
-        if gender == "Male":
-            goals = {
-                "Average": 18.0,
-                "Above Average": 20.0,
-                "Athletic": 22.0,
-                "Elite Natural": 24.5
-            }
-        else:
-            goals = {
-                "Average": 16.0,
-                "Above Average": 17.0,
-                "Athletic": 18.5,
-                "Elite Natural": 20.0
-            }
-        
-        st.write("**FFMI Goal Targets:**")
-        for goal, value in goals.items():
-            mass_for_goal = calculate_ffm_from_ffmi(value, height_m)
-            gain_needed = max(0, mass_for_goal - current_mass)
-            
-            if gain_needed > 0:
-                st.write(f"- {goal}: {value:.1f} kg/m² (need +{gain_needed:.1f} kg)")
-            else:
-                st.write(f"- {goal}: {value:.1f} kg/m² ✓")
     
     # Notes
     st.subheader("Important Notes")

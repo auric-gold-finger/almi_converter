@@ -22,16 +22,13 @@ def main():
     st.title("Body Composition Calculator")
     st.write("Calculate lean mass gains needed to reach target ALMI or FFMI values")
     
-    # Metric selection
-    st.subheader("Setup")
-    
-    col1, col2 = st.columns(2)
+    # Single line setup
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        # Unit system
-        unit_system = st.radio("Unit system:", ["Metric", "English"])
-        
-        # Height input
+        unit_system = st.radio("Units:", ["Metric", "English"])
+    
+    with col2:
         if unit_system == "Metric":
             height_cm = st.number_input("Height (cm):", min_value=100.0, max_value=250.0, 
                                        value=170.0, step=0.5)
@@ -41,18 +38,15 @@ def main():
             inches = st.number_input("Inches:", min_value=0, max_value=11, value=8, step=1)
             height_m = (feet * 12 + inches) * 0.0254
             height_cm = height_m * 100
-        
-        st.write(f"Height: {height_cm:.1f} cm ({height_m:.2f} m)")
     
-    with col2:
-        # Gender and calculation type
+    with col3:
         gender = st.selectbox("Gender:", ["Male", "Female"])
-        calc_type = st.radio("Calculate:", ["ALMI (Appendicular Lean Mass Index)", "FFMI (Fat-Free Mass Index)"])
+    
+    with col4:
+        calc_type = st.radio("Calculate:", ["ALMI", "FFMI"])
     
     # Input section based on calculation type
-    st.subheader("Current Metrics")
-    
-    if calc_type.startswith("ALMI"):
+    if calc_type == "ALMI":
         col1, col2 = st.columns(2)
         
         with col1:
@@ -67,11 +61,9 @@ def main():
         
         # Reference ranges for ALMI
         if gender == "Male":
-            ref_text = "Male reference: Normal ≥ 7.0 kg/m², Low < 7.0 kg/m²"
+            st.caption("Male reference: Normal ≥ 7.0 kg/m², Low < 7.0 kg/m²")
         else:
-            ref_text = "Female reference: Normal ≥ 5.5 kg/m², Low < 5.5 kg/m²"
-        
-        st.write(ref_text)
+            st.caption("Female reference: Normal ≥ 5.5 kg/m², Low < 5.5 kg/m²")
         
         # Calculate lean mass values
         current_alm = calculate_alm_from_almi(current_almi, height_m)
@@ -105,11 +97,9 @@ def main():
         
         # Reference ranges for FFMI
         if gender == "Male":
-            ref_text = "Male reference: Average 16.7-19.8 kg/m², Athletic >20 kg/m², Elite 22-25 kg/m²"
+            st.caption("Male reference: Average 16.7-19.8 kg/m², Athletic >20 kg/m², Elite 22-25 kg/m²")
         else:
-            ref_text = "Female reference: Average 14.6-16.8 kg/m², Athletic >17 kg/m²"
-        
-        st.write(ref_text)
+            st.caption("Female reference: Average 14.6-16.8 kg/m², Athletic >17 kg/m²")
         
         # Calculate fat-free mass values
         current_ffm = calculate_ffm_from_ffmi(current_ffmi, height_m)
@@ -123,28 +113,11 @@ def main():
         target_mass = target_ffm
         mass_unit = "FFM"
     
-    # Results
-    st.subheader("Results")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.write("**Current:**")
-        st.write(f"{metric_name}: {current_metric:.2f} kg/m²")
-        st.write(f"{mass_unit}: {current_mass:.1f} kg ({kg_to_lbs(current_mass):.1f} lbs)")
-    
-    with col2:
-        st.write("**Target:**")
-        st.write(f"{metric_name}: {target_metric:.2f} kg/m²")
-        st.write(f"{mass_unit}: {target_mass:.1f} kg ({kg_to_lbs(target_mass):.1f} lbs)")
-    
-    with col3:
-        st.write("**To Gain:**")
-        if mass_needed > 0:
-            st.write(f"Lean Mass: **{mass_needed:.1f} kg ({kg_to_lbs(mass_needed):.1f} lbs)**")
-            st.write(f"{metric_name} Increase: {target_metric - current_metric:.2f} kg/m²")
-        else:
-            st.write("Target already reached!")
+    # Results in single line
+    if mass_needed > 0:
+        st.success(f"**To reach {target_metric:.1f} kg/m² {metric_name}: Gain {mass_needed:.1f} kg ({kg_to_lbs(mass_needed):.1f} lbs) lean mass**")
+    else:
+        st.success("**Target already reached!**")
     
     # Timeline estimates (only if mass needs to be gained)
     if mass_needed > 0:

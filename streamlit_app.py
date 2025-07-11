@@ -1,15 +1,12 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
+import plotly.graph_objects as go
+import plotly.express as px
+from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 import io
 import base64
-
-# Set matplotlib style for better plots
-plt.style.use('seaborn-v0_8')
-sns.set_palette("husl")
 
 def lbs_to_kg(lbs):
     """Convert pounds to kilograms"""
@@ -114,9 +111,7 @@ def get_percentile_targets(gender, metric_type):
             }
 
 def create_recomp_visualization(recomp_data, unit_system):
-    """Create body recomposition visualization"""
-    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 10))
-    fig.suptitle('Body Recomposition Analysis', fontsize=16, fontweight='bold')
+    """Create body recomposition visualization using Plotly"""
     
     # Weight unit for display
     weight_unit = "lbs" if unit_system == "English" else "kg"
@@ -137,75 +132,104 @@ def create_recomp_visualization(recomp_data, unit_system):
         current_fat = recomp_data['current_fat']
         new_fat = recomp_data['new_fat']
     
-    # 1. Body composition pie charts
-    current_data = [current_lean, current_fat]
-    new_data = [new_lean, new_fat]
-    labels = ['Lean Mass', 'Fat Mass']
+    # Create subplots
+    fig = make_subplots(
+        rows=2, cols=2,
+        subplot_titles=('Current Body Composition', 'Target Body Composition', 
+                       'Current vs Target Comparison', 'Net Changes'),
+        specs=[[{"type": "pie"}, {"type": "pie"}],
+               [{"type": "bar"}, {"type": "bar"}]]
+    )
+    
+    # Colors
     colors = ['#66A3FF', '#F3817D']
     
-    ax1.pie(current_data, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
-    ax1.set_title(f'Current Body Composition\n{current_weight:.1f} {weight_unit}')
+    # 1. Current composition pie chart
+    fig.add_trace(go.Pie(
+        labels=['Lean Mass', 'Fat Mass'],
+        values=[current_lean, current_fat],
+        name="Current",
+        marker_colors=colors,
+        textinfo='label+percent',
+        hovertemplate='<b>%{label}</b><br>%{value:.1f} ' + weight_unit + '<br>%{percent}<extra></extra>'
+    ), row=1, col=1)
     
-    ax2.pie(new_data, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
-    ax2.set_title(f'Target Body Composition\n{new_weight:.1f} {weight_unit}')
+    # 2. Target composition pie chart
+    fig.add_trace(go.Pie(
+        labels=['Lean Mass', 'Fat Mass'],
+        values=[new_lean, new_fat],
+        name="Target",
+        marker_colors=colors,
+        textinfo='label+percent',
+        hovertemplate='<b>%{label}</b><br>%{value:.1f} ' + weight_unit + '<br>%{percent}<extra></extra>'
+    ), row=1, col=2)
     
-    # 3. Before/After comparison bar chart
+    # 3. Comparison bar chart
     categories = ['Lean Mass', 'Fat Mass', 'Total Weight']
     current_values = [current_lean, current_fat, current_weight]
     new_values = [new_lean, new_fat, new_weight]
     
-    x = np.arange(len(categories))
-    width = 0.35
+    fig.add_trace(go.Bar(
+        x=categories,
+        y=current_values,
+        name='Current',
+        marker_color='rgba(117, 117, 117, 0.7)',
+        text=[f'{val:.1f}' for val in current_values],
+        textposition='auto',
+        hovertemplate='<b>Current %{x}</b><br>%{y:.1f} ' + weight_unit + '<extra></extra>'
+    ), row=2, col=1)
     
-    bars1 = ax3.bar(x - width/2, current_values, width, label='Current', color='#757575', alpha=0.7)
-    bars2 = ax3.bar(x + width/2, new_values, width, label='Target', color='#267DFF', alpha=0.8)
+    fig.add_trace(go.Bar(
+        x=categories,
+        y=new_values,
+        name='Target',
+        marker_color='rgba(38, 125, 255, 0.8)',
+        text=[f'{val:.1f}' for val in new_values],
+        textposition='auto',
+        hovertemplate='<b>Target %{x}</b><br>%{y:.1f} ' + weight_unit + '<extra></extra>'
+    ), row=2, col=1)
     
-    ax3.set_xlabel('Component')
-    ax3.set_ylabel(f'Mass ({weight_unit})')
-    ax3.set_title('Current vs Target Comparison')
-    ax3.set_xticks(x)
-    ax3.set_xticklabels(categories)
-    ax3.legend()
-    ax3.grid(axis='y', alpha=0.3)
-    
-    # Add value labels on bars
-    for bars in [bars1, bars2]:
-        for bar in bars:
-            height = bar.get_height()
-            ax3.annotate(f'{height:.1f}',
-                        xy=(bar.get_x() + bar.get_width() / 2, height),
-                        xytext=(0, 3),
-                        textcoords="offset points",
-                        ha='center', va='bottom', fontsize=9)
-    
-    # 4. Changes visualization
+    # 4. Changes bar chart
     changes = [new_lean - current_lean, new_fat - current_fat, new_weight - current_weight]
     change_colors = ['green' if x >= 0 else 'red' for x in changes]
     
-    bars = ax4.bar(categories, changes, color=change_colors, alpha=0.7)
-    ax4.set_xlabel('Component')
-    ax4.set_ylabel(f'Change ({weight_unit})')
-    ax4.set_title('Net Changes')
-    ax4.axhline(y=0, color='black', linestyle='-', alpha=0.3)
-    ax4.grid(axis='y', alpha=0.3)
+    fig.add_trace(go.Bar(
+        x=categories,
+        y=changes,
+        name='Changes',
+        marker_color=change_colors,
+        text=[f'{change:+.1f}' for change in changes],
+        textposition='auto',
+        hovertemplate='<b>%{x} Change</b><br>%{y:+.1f} ' + weight_unit + '<extra></extra>',
+        showlegend=False
+    ), row=2, col=2)
     
-    # Add value labels
-    for bar, change in zip(bars, changes):
-        height = bar.get_height()
-        ax4.annotate(f'{change:+.1f}',
-                    xy=(bar.get_x() + bar.get_width() / 2, height),
-                    xytext=(0, 3 if height >= 0 else -15),
-                    textcoords="offset points",
-                    ha='center', va='bottom' if height >= 0 else 'top', 
-                    fontsize=10, fontweight='bold')
+    # Add horizontal line at y=0 for changes chart
+    fig.add_hline(y=0, line_dash="dash", line_color="black", opacity=0.5, row=2, col=2)
     
-    plt.tight_layout()
+    # Update layout
+    fig.update_layout(
+        title=dict(
+            text='Body Recomposition Analysis',
+            x=0.5,
+            xanchor='center',
+            font=dict(size=20, color='#1f2937')
+        ),
+        height=700,
+        showlegend=True,
+        font=dict(family="Arial, sans-serif"),
+        plot_bgcolor='white',
+        paper_bgcolor='white'
+    )
+    
+    # Update y-axes labels
+    fig.update_yaxes(title_text=f"Mass ({weight_unit})", row=2, col=1)
+    fig.update_yaxes(title_text=f"Change ({weight_unit})", row=2, col=2)
+    
     return fig
 
 def create_limb_composition_chart(left_arm, right_arm, left_leg, right_leg, unit_system):
-    """Create limb-specific lean mass visualization"""
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
-    fig.suptitle('Appendicular Lean Mass Distribution', fontsize=16, fontweight='bold')
+    """Create limb-specific lean mass visualization using Plotly"""
     
     weight_unit = "lbs" if unit_system == "English" else "kg"
     
@@ -215,74 +239,191 @@ def create_limb_composition_chart(left_arm, right_arm, left_leg, right_leg, unit
     else:
         limb_masses = [left_arm, right_arm, left_leg, right_leg]
     
-    # 1. Pie chart of limb distribution
+    # Create subplots
+    fig = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=('Limb Mass Distribution', 'Lean Mass by Limb'),
+        specs=[[{"type": "pie"}, {"type": "bar"}]]
+    )
+    
+    # Data
     labels = ['Left Arm', 'Right Arm', 'Left Leg', 'Right Leg']
     colors = ['#267DFF', '#66A3FF', '#F3817D', '#DA5955']
     
-    ax1.pie(limb_masses, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
-    ax1.set_title('Limb Mass Distribution')
+    # 1. Pie chart
+    fig.add_trace(go.Pie(
+        labels=labels,
+        values=limb_masses,
+        name="Distribution",
+        marker_colors=colors,
+        textinfo='label+percent',
+        hovertemplate='<b>%{label}</b><br>%{value:.1f} ' + weight_unit + '<br>%{percent}<extra></extra>'
+    ), row=1, col=1)
     
-    # 2. Bar chart comparison
-    bars = ax2.bar(labels, limb_masses, color=colors, alpha=0.8)
-    ax2.set_ylabel(f'Lean Mass ({weight_unit})')
-    ax2.set_title('Lean Mass by Limb')
-    ax2.grid(axis='y', alpha=0.3)
-    
-    # Add value labels on bars
-    for bar, mass in zip(bars, limb_masses):
-        height = bar.get_height()
-        ax2.annotate(f'{mass:.1f}',
-                    xy=(bar.get_x() + bar.get_width() / 2, height),
-                    xytext=(0, 3),
-                    textcoords="offset points",
-                    ha='center', va='bottom', fontweight='bold')
+    # 2. Bar chart
+    fig.add_trace(go.Bar(
+        x=labels,
+        y=limb_masses,
+        name='Lean Mass',
+        marker_color=colors,
+        text=[f'{mass:.1f}' for mass in limb_masses],
+        textposition='auto',
+        hovertemplate='<b>%{x}</b><br>%{y:.1f} ' + weight_unit + '<extra></extra>',
+        showlegend=False
+    ), row=1, col=2)
     
     # Calculate symmetry
     arm_symmetry = abs(limb_masses[0] - limb_masses[1]) / max(limb_masses[0], limb_masses[1]) * 100
     leg_symmetry = abs(limb_masses[2] - limb_masses[3]) / max(limb_masses[2], limb_masses[3]) * 100
     
-    ax2.text(0.02, 0.98, f'Arm Asymmetry: {arm_symmetry:.1f}%\nLeg Asymmetry: {leg_symmetry:.1f}%', 
-             transform=ax2.transAxes, verticalalignment='top', 
-             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+    # Add symmetry annotation
+    fig.add_annotation(
+        x=0.05, y=0.95,
+        xref="paper", yref="paper",
+        text=f"Arm Asymmetry: {arm_symmetry:.1f}%<br>Leg Asymmetry: {leg_symmetry:.1f}%",
+        showarrow=False,
+        align="left",
+        bgcolor="rgba(255, 255, 255, 0.8)",
+        bordercolor="rgba(0, 0, 0, 0.2)",
+        borderwidth=1
+    )
     
-    plt.tight_layout()
+    # Update layout
+    fig.update_layout(
+        title=dict(
+            text='Appendicular Lean Mass Distribution',
+            x=0.5,
+            xanchor='center',
+            font=dict(size=18, color='#1f2937')
+        ),
+        height=500,
+        font=dict(family="Arial, sans-serif"),
+        plot_bgcolor='white',
+        paper_bgcolor='white'
+    )
+    
+    # Update y-axis
+    fig.update_yaxes(title_text=f"Lean Mass ({weight_unit})", row=1, col=2)
+    
     return fig
 
 def create_percentile_visualization(current_metric, target_metric, gender, metric_type):
-    """Create percentile goal visualization"""
+    """Create percentile goal visualization using Plotly"""
     percentiles = get_percentile_targets(gender, metric_type)
-    
-    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
     
     percentile_names = list(percentiles.keys())
     percentile_values = list(percentiles.values())
     
     # Create bar chart
-    bars = ax.bar(range(len(percentile_names)), percentile_values, 
-                  color=['#DA5955', '#F3817D', '#757575', '#66A3FF', '#267DFF'], alpha=0.7)
+    fig = go.Figure()
+    
+    # Add percentile bars
+    colors = ['#DA5955', '#F3817D', '#757575', '#66A3FF', '#267DFF']
+    
+    fig.add_trace(go.Bar(
+        x=percentile_names,
+        y=percentile_values,
+        name='Percentiles',
+        marker_color=colors,
+        text=[f'{val:.1f}' for val in percentile_values],
+        textposition='auto',
+        hovertemplate='<b>%{x}</b><br>%{y:.1f} kg/m²<extra></extra>'
+    ))
     
     # Add current value line
-    ax.axhline(y=current_metric, color='red', linestyle='--', linewidth=2, label=f'Current: {current_metric:.1f}')
-    ax.axhline(y=target_metric, color='green', linestyle='--', linewidth=2, label=f'Target: {target_metric:.1f}')
+    fig.add_hline(
+        y=current_metric,
+        line_dash="dash",
+        line_color="red",
+        line_width=3,
+        annotation_text=f"Current: {current_metric:.1f}",
+        annotation_position="top right"
+    )
     
-    ax.set_xlabel('Percentile')
-    ax.set_ylabel(f'{metric_type} (kg/m²)')
-    ax.set_title(f'{metric_type} Percentile Goals for {gender}s')
-    ax.set_xticks(range(len(percentile_names)))
-    ax.set_xticklabels(percentile_names, rotation=45, ha='right')
-    ax.legend()
-    ax.grid(axis='y', alpha=0.3)
+    # Add target value line
+    fig.add_hline(
+        y=target_metric,
+        line_dash="dash",
+        line_color="green",
+        line_width=3,
+        annotation_text=f"Target: {target_metric:.1f}",
+        annotation_position="bottom right"
+    )
     
-    # Add value labels on bars
-    for bar, value in zip(bars, percentile_values):
-        height = bar.get_height()
-        ax.annotate(f'{value:.1f}',
-                   xy=(bar.get_x() + bar.get_width() / 2, height),
-                   xytext=(0, 3),
-                   textcoords="offset points",
-                   ha='center', va='bottom', fontsize=9)
+    # Update layout
+    fig.update_layout(
+        title=dict(
+            text=f'{metric_type} Percentile Goals for {gender}s',
+            x=0.5,
+            xanchor='center',
+            font=dict(size=18, color='#1f2937')
+        ),
+        xaxis_title="Percentile",
+        yaxis_title=f"{metric_type} (kg/m²)",
+        height=500,
+        font=dict(family="Arial, sans-serif"),
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        showlegend=False
+    )
     
-    plt.tight_layout()
+    # Update axes
+    fig.update_xaxes(tickangle=45)
+    fig.update_yaxes(gridcolor='rgba(0,0,0,0.1)')
+    
+    return fig
+
+def create_progress_timeline_chart(timeline_data, unit_system):
+    """Create timeline visualization for lean mass gain progress"""
+    
+    weight_unit = "lbs" if unit_system == "English" else "kg"
+    
+    fig = go.Figure()
+    
+    # Extract data
+    experience_levels = [item['experience'] for item in timeline_data]
+    monthly_rates = [item['monthly_rate_kg'] for item in timeline_data]
+    timelines_months = [item['timeline_months'] for item in timeline_data]
+    
+    # Convert to display units if needed
+    if unit_system == "English":
+        monthly_rates_display = [kg_to_lbs(rate) for rate in monthly_rates]
+    else:
+        monthly_rates_display = monthly_rates
+    
+    # Create bar chart for monthly rates
+    fig.add_trace(go.Bar(
+        x=experience_levels,
+        y=monthly_rates_display,
+        name=f'Monthly Rate ({weight_unit})',
+        marker_color=['#267DFF', '#66A3FF', '#F3817D'],
+        text=[f'{rate:.2f}' for rate in monthly_rates_display],
+        textposition='auto',
+        hovertemplate='<b>%{x}</b><br>%{y:.2f} ' + weight_unit + '/month<br>Timeline: %{customdata:.1f} months<extra></extra>',
+        customdata=timelines_months
+    ))
+    
+    # Update layout
+    fig.update_layout(
+        title=dict(
+            text='Realistic Lean Mass Gain Timeline',
+            x=0.5,
+            xanchor='center',
+            font=dict(size=18, color='#1f2937')
+        ),
+        xaxis_title="Experience Level",
+        yaxis_title=f"Monthly Gain Rate ({weight_unit})",
+        height=400,
+        font=dict(family="Arial, sans-serif"),
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        showlegend=False
+    )
+    
+    # Update axes
+    fig.update_xaxes(tickangle=0)
+    fig.update_yaxes(gridcolor='rgba(0,0,0,0.1)')
+    
     return fig
 
 def generate_dexa_report_html(patient_data, scan_data, unit_system):

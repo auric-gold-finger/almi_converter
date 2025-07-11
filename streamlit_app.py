@@ -1,430 +1,4 @@
-def generate_bmd_report_html(patient_data, bmd_data, unit_system):
-    """Generate a BMD-focused DEXA report HTML"""
-    
-    html_template = """<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BMD Analysis Report - {patient_name}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        body {{ font-family: 'Lato', sans-serif; background-color: #f7f7f5; }}
-        h1, h2, h3, h4 {{ font-family: 'Cormorant Garamond', serif; color: #06121B; }}
-        .chart-line {{ stroke-dasharray: 1000; stroke-dashoffset: 1000; animation: dash 2s ease-out forwards; }}
-        @keyframes dash {{ to {{ stroke-dashoffset: 0; }} }}
-    </style>
-</head>
-<body class="p-4 sm:p-6 lg:p-8">
-    <div class="max-w-7xl mx-auto space-y-8 bg-white rounded-2xl p-6 shadow-lg">
-        <header class="text-center border-b border-gray-200 pb-6">
-            <h1 class="text-4xl font-bold text-gray-800 tracking-wide">Bone Mineral Density Analysis</h1>
-            <p class="text-xl text-gray-600 mt-2">{patient_name}</p>
-            <div class="flex justify-center flex-wrap gap-x-6 gap-y-2 mt-2 text-gray-500">
-                <span>DOB: {dob}</span>
-                <span>Age: {age} years</span>
-                <span>Height: {height}</span>
-                <span>Exam Date: {exam_date}</span>
-            </div>
-        </header>
-
-        <section class="bg-white rounded-xl shadow-md p-6">
-            <h2 class="text-3xl font-bold mb-6 text-center">Current BMD T-Scores</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="bmd-charts">
-                <div class="bg-white rounded-xl shadow-md p-4">
-                    <h4 class="text-xl font-semibold text-center mb-4">Left Femur BMD (T-score)</h4>
-                    <div class="flex items-center justify-center space-x-4">
-                        <div class="flex flex-col justify-between text-right text-xs text-gray-500 h-80">
-                            <div>4</div><div>3</div><div>2</div><div>1</div><div>0</div>
-                            <div>-1</div><div>-2</div><div>-3</div><div>-4</div>
-                        </div>
-                        <div class="relative w-20 rounded-lg overflow-hidden border-2 border-gray-300 h-80">
-                            <div class="absolute w-full bg-red-400 opacity-70" style="bottom: 0%; height: 12.5%;"></div>
-                            <div class="absolute w-full bg-orange-400 opacity-70" style="bottom: 12.5%; height: 18.75%;"></div>
-                            <div class="absolute w-full bg-blue-400 opacity-70" style="bottom: 31.25%; height: 37.5%;"></div>
-                            <div class="absolute w-full bg-blue-600 opacity-70" style="bottom: 68.75%; height: 31.25%;"></div>
-                            <div class="absolute w-full h-1 bg-slate-800 border-t-2 border-b-2 border-white" 
-                                 style="bottom: {left_femur_position}%; transform: translateY(50%);">
-                                <div class="absolute right-full top-1/2 -translate-y-1/2 mr-2 px-2 py-0.5 bg-slate-800 text-white text-xs font-bold rounded">
-                                    {left_femur_t:.1f}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex flex-col justify-around h-80">
-                            <div class="flex items-center space-x-2">
-                                <div class="w-3 h-3 rounded-full bg-blue-600 opacity-70"></div>
-                                <span class="text-xs text-gray-600">High Density</span>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <div class="w-3 h-3 rounded-full bg-blue-400 opacity-70"></div>
-                                <span class="text-xs text-gray-600">Normal</span>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <div class="w-3 h-3 rounded-full bg-orange-400 opacity-70"></div>
-                                <span class="text-xs text-gray-600">Osteopenia</span>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <div class="w-3 h-3 rounded-full bg-red-400 opacity-70"></div>
-                                <span class="text-xs text-gray-600">Osteoporosis</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-xl shadow-md p-4">
-                    <h4 class="text-xl font-semibold text-center mb-4">Right Femur BMD (T-score)</h4>
-                    <div class="flex items-center justify-center space-x-4">
-                        <div class="flex flex-col justify-between text-right text-xs text-gray-500 h-80">
-                            <div>4</div><div>3</div><div>2</div><div>1</div><div>0</div>
-                            <div>-1</div><div>-2</div><div>-3</div><div>-4</div>
-                        </div>
-                        <div class="relative w-20 rounded-lg overflow-hidden border-2 border-gray-300 h-80">
-                            <div class="absolute w-full bg-red-400 opacity-70" style="bottom: 0%; height: 12.5%;"></div>
-                            <div class="absolute w-full bg-orange-400 opacity-70" style="bottom: 12.5%; height: 18.75%;"></div>
-                            <div class="absolute w-full bg-blue-400 opacity-70" style="bottom: 31.25%; height: 37.5%;"></div>
-                            <div class="absolute w-full bg-blue-600 opacity-70" style="bottom: 68.75%; height: 31.25%;"></div>
-                            <div class="absolute w-full h-1 bg-slate-800 border-t-2 border-b-2 border-white" 
-                                 style="bottom: {right_femur_position}%; transform: translateY(50%);">
-                                <div class="absolute right-full top-1/2 -translate-y-1/2 mr-2 px-2 py-0.5 bg-slate-800 text-white text-xs font-bold rounded">
-                                    {right_femur_t:.1f}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex flex-col justify-around h-80">
-                            <div class="flex items-center space-x-2">
-                                <div class="w-3 h-3 rounded-full bg-blue-600 opacity-70"></div>
-                                <span class="text-xs text-gray-600">High Density</span>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <div class="w-3 h-3 rounded-full bg-blue-400 opacity-70"></div>
-                                <span class="text-xs text-gray-600">Normal</span>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <div class="w-3 h-3 rounded-full bg-orange-400 opacity-70"></div>
-                                <span class="text-xs text-gray-600">Osteopenia</span>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <div class="w-3 h-3 rounded-full bg-red-400 opacity-70"></div>
-                                <span class="text-xs text-gray-600">Osteoporosis</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-xl shadow-md p-4">
-                    <h4 class="text-xl font-semibold text-center mb-4">Lumbar Spine BMD (T-score)</h4>
-                    <div class="flex items-center justify-center space-x-4">
-                        <div class="flex flex-col justify-between text-right text-xs text-gray-500 h-80">
-                            <div>4</div><div>3</div><div>2</div><div>1</div><div>0</div>
-                            <div>-1</div><div>-2</div><div>-3</div><div>-4</div>
-                        </div>
-                        <div class="relative w-20 rounded-lg overflow-hidden border-2 border-gray-300 h-80">
-                            <div class="absolute w-full bg-red-400 opacity-70" style="bottom: 0%; height: 12.5%;"></div>
-                            <div class="absolute w-full bg-orange-400 opacity-70" style="bottom: 12.5%; height: 18.75%;"></div>
-                            <div class="absolute w-full bg-blue-400 opacity-70" style="bottom: 31.25%; height: 37.5%;"></div>
-                            <div class="absolute w-full bg-blue-600 opacity-70" style="bottom: 68.75%; height: 31.25%;"></div>
-                            <div class="absolute w-full h-1 bg-slate-800 border-t-2 border-b-2 border-white" 
-                                 style="bottom: {spine_position}%; transform: translateY(50%);">
-                                <div class="absolute right-full top-1/2 -translate-y-1/2 mr-2 px-2 py-0.5 bg-slate-800 text-white text-xs font-bold rounded">
-                                    {spine_t:.1f}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex flex-col justify-around h-80">
-                            <div class="flex items-center space-x-2">
-                                <div class="w-3 h-3 rounded-full bg-blue-600 opacity-70"></div>
-                                <span class="text-xs text-gray-600">High Density</span>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <div class="w-3 h-3 rounded-full bg-blue-400 opacity-70"></div>
-                                <span class="text-xs text-gray-600">Normal</span>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <div class="w-3 h-3 rounded-full bg-orange-400 opacity-70"></div>
-                                <span class="text-xs text-gray-600">Osteopenia</span>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <div class="w-3 h-3 rounded-full bg-red-400 opacity-70"></div>
-                                <span class="text-xs text-gray-600">Osteoporosis</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="bg-white rounded-xl shadow-md p-6">
-            <h2 class="text-3xl font-bold mb-6 text-center">BMD Summary & Interpretation</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div class="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
-                    <h3 class="text-lg font-semibold text-gray-700">Left Femur</h3>
-                    <p class="text-3xl font-bold text-blue-600">{left_femur_t:.1f}</p>
-                    <p class="text-sm text-gray-600">{left_femur_status}</p>
-                </div>
-                <div class="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg">
-                    <h3 class="text-lg font-semibold text-gray-700">Right Femur</h3>
-                    <p class="text-3xl font-bold text-green-600">{right_femur_t:.1f}</p>
-                    <p class="text-sm text-gray-600">{right_femur_status}</p>
-                </div>
-                <div class="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg">
-                    <h3 class="text-lg font-semibold text-gray-700">Lumbar Spine</h3>
-                    <p class="text-3xl font-bold text-purple-600">{spine_t:.1f}</p>
-                    <p class="text-sm text-gray-600">{spine_status}</p>
-                </div>
-            </div>
-            
-            <div class="bg-gray-50 rounded-lg p-6">
-                <h3 class="text-xl font-semibold mb-4">Clinical Interpretation</h3>
-                <div class="space-y-3 text-gray-700">
-                    <p><strong>Overall Assessment:</strong> {overall_assessment}</p>
-                    <p><strong>T-Score Interpretation:</strong></p>
-                    <ul class="list-disc list-inside ml-4 space-y-1">
-                        <li><strong>Normal:</strong> T-score of -1.0 or above</li>
-                        <li><strong>Osteopenia (Low bone mass):</strong> T-score between -1.0 and -2.5</li>
-                        <li><strong>Osteoporosis:</strong> T-score of -2.5 or below</li>
-                    </ul>
-                    <p><strong>Recommendations:</strong> {recommendations}</p>
-                </div>
-            </div>
-        </section>
-
-        <footer class="text-center text-sm text-gray-500 pt-8 mt-8 border-t border-gray-200">
-            <p>&copy; 2025 BMD Analysis Report. All Rights Reserved.</p>
-            <p class="text-xs mt-1">Disclaimer: This is a visualization of BMD data and not a medical diagnosis. Consult with your healthcare provider.</p>
-        </footer>
-    </div>
-</body>
-</html>"""
-    
-    # Calculate positions for BMD indicators (T-score range -4 to 4)
-    def calc_position(t_score):
-        return ((t_score + 4) / 8) * 100
-    
-    # Determine status based on T-score
-    def get_bmd_status(t_score):
-        if t_score >= -1.0:
-            return "Normal"
-        elif t_score >= -2.5:
-            return "Osteopenia"
-        else:
-            return "Osteoporosis"
-    
-    # Calculate overall assessment
-    scores = [bmd_data['left_femur_t'], bmd_data['right_femur_t'], bmd_data['spine_t']]
-    min_score = min(scores)
-    avg_score = sum(scores) / len(scores)
-    
-    if min_score >= -1.0:
-        overall_assessment = "Excellent bone health with normal bone density at all measured sites."
-        recommendations = "Continue current lifestyle with adequate calcium, vitamin D, and weight-bearing exercise."
-    elif min_score >= -2.5:
-        overall_assessment = "Mild bone loss (osteopenia) detected. Early intervention recommended."
-        recommendations = "Increase weight-bearing exercise, ensure adequate calcium/vitamin D intake, consider lifestyle modifications."
-    else:
-        overall_assessment = "Osteoporosis detected. Medical evaluation and treatment planning recommended."
-        recommendations = "Consult with physician for comprehensive osteoporosis management including medication evaluation."
-    
-    # Format the HTML
-    formatted_html = html_template.format(
-        patient_name=patient_data['name'],
-        dob=patient_data['dob'],
-        age=patient_data['age'],
-        height=patient_data['height_display'],
-        exam_date=datetime.now().strftime("%m/%d/%Y"),
-        left_femur_t=bmd_data['left_femur_t'],
-        right_femur_t=bmd_data['right_femur_t'],
-        spine_t=bmd_data['spine_t'],
-        left_femur_position=calc_position(bmd_data['left_femur_t']),
-        right_femur_position=calc_position(bmd_data['right_femur_t']),
-        spine_position=calc_position(bmd_data['spine_t']),
-        left_femur_status=get_bmd_status(bmd_data['left_femur_t']),
-        right_femur_status=get_bmd_status(bmd_data['right_femur_t']),
-        spine_status=get_bmd_status(bmd_data['spine_t']),
-        overall_assessment=overall_assessment,
-        recommendations=recommendations
-    )
-    
-    return formatted_html
-
-def generate_body_comp_report_html(patient_data, body_comp_data, goals_data, unit_system):
-    """Generate a comprehensive body composition report HTML"""
-    
-    html_template = """<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Body Composition Analysis - {patient_name}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        body {{ font-family: 'Lato', sans-serif; background-color: #f7f7f5; }}
-        h1, h2, h3, h4 {{ font-family: 'Cormorant Garamond', serif; color: #06121B; }}
-    </style>
-</head>
-<body class="p-4 sm:p-6 lg:p-8">
-    <div class="max-w-7xl mx-auto space-y-8 bg-white rounded-2xl p-6 shadow-lg">
-        <header class="text-center border-b border-gray-200 pb-6">
-            <h1 class="text-4xl font-bold text-gray-800 tracking-wide">Body Composition Analysis</h1>
-            <p class="text-xl text-gray-600 mt-2">{patient_name}</p>
-            <div class="flex justify-center flex-wrap gap-x-6 gap-y-2 mt-2 text-gray-500">
-                <span>DOB: {dob}</span>
-                <span>Age: {age} years</span>
-                <span>Gender: {gender}</span>
-                <span>Exam Date: {exam_date}</span>
-            </div>
-        </header>
-
-        <section class="bg-white rounded-xl shadow-md p-6">
-            <h2 class="text-3xl font-bold mb-6 text-center">Current Body Composition</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                <div class="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
-                    <h3 class="text-lg font-semibold text-gray-700">Height</h3>
-                    <p class="text-2xl font-bold text-blue-600">{height}</p>
-                </div>
-                <div class="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg">
-                    <h3 class="text-lg font-semibold text-gray-700">Weight</h3>
-                    <p class="text-2xl font-bold text-green-600">{weight}</p>
-                </div>
-                <div class="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg">
-                    <h3 class="text-lg font-semibold text-gray-700">BMI</h3>
-                    <p class="text-2xl font-bold text-purple-600">{bmi:.1f}</p>
-                </div>
-                <div class="text-center p-4 bg-gradient-to-br from-red-50 to-red-100 rounded-lg">
-                    <h3 class="text-lg font-semibold text-gray-700">Total Body Fat</h3>
-                    <p class="text-2xl font-bold text-red-600">{body_fat:.1f}%</p>
-                </div>
-            </div>
-            
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="text-center p-4 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg">
-                    <h3 class="text-lg font-semibold text-gray-700">VAT Mass</h3>
-                    <p class="text-2xl font-bold text-indigo-600">{vat_mass:.0f}g</p>
-                </div>
-                <div class="text-center p-4 bg-gradient-to-br from-teal-50 to-teal-100 rounded-lg">
-                    <h3 class="text-lg font-semibold text-gray-700">Total ALM</h3>
-                    <p class="text-2xl font-bold text-teal-600">{alm:.1f} {weight_unit}</p>
-                </div>
-                <div class="text-center p-4 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg">
-                    <h3 class="text-lg font-semibold text-gray-700">ALMI</h3>
-                    <p class="text-2xl font-bold text-yellow-600">{almi:.2f}</p>
-                    <p class="text-xs text-gray-500">kg/m²</p>
-                </div>
-                <div class="text-center p-4 bg-gradient-to-br from-pink-50 to-pink-100 rounded-lg">
-                    <h3 class="text-lg font-semibold text-gray-700">FFMI</h3>
-                    <p class="text-2xl font-bold text-pink-600">{ffmi:.1f}</p>
-                    <p class="text-xs text-gray-500">kg/m²</p>
-                </div>
-            </div>
-        </section>
-
-        <section class="bg-white rounded-xl shadow-md p-6">
-            <h2 class="text-3xl font-bold mb-6 text-center">Limb-Specific Lean Mass</h2>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="text-center p-4 bg-gray-50 rounded-lg">
-                    <h4 class="font-semibold text-gray-700">Left Arm</h4>
-                    <p class="text-xl font-bold text-blue-600">{left_arm:.1f} {weight_unit}</p>
-                    <p class="text-sm text-gray-500">{left_arm_pct:.1f}% of ALM</p>
-                </div>
-                <div class="text-center p-4 bg-gray-50 rounded-lg">
-                    <h4 class="font-semibold text-gray-700">Right Arm</h4>
-                    <p class="text-xl font-bold text-blue-600">{right_arm:.1f} {weight_unit}</p>
-                    <p class="text-sm text-gray-500">{right_arm_pct:.1f}% of ALM</p>
-                </div>
-                <div class="text-center p-4 bg-gray-50 rounded-lg">
-                    <h4 class="font-semibold text-gray-700">Left Leg</h4>
-                    <p class="text-xl font-bold text-green-600">{left_leg:.1f} {weight_unit}</p>
-                    <p class="text-sm text-gray-500">{left_leg_pct:.1f}% of ALM</p>
-                </div>
-                <div class="text-center p-4 bg-gray-50 rounded-lg">
-                    <h4 class="font-semibold text-gray-700">Right Leg</h4>
-                    <p class="text-xl font-bold text-green-600">{right_leg:.1f} {weight_unit}</p>
-                    <p class="text-sm text-gray-500">{right_leg_pct:.1f}% of ALM</p>
-                </div>
-            </div>
-            
-            <div class="mt-6 bg-gray-50 rounded-lg p-4">
-                <h4 class="font-semibold text-gray-700 mb-2">Symmetry Analysis</h4>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="text-center">
-                        <p class="text-sm text-gray-600">Arm Asymmetry</p>
-                        <p class="text-lg font-bold {arm_color}">{arm_asymmetry:.1f}%</p>
-                    </div>
-                    <div class="text-center">
-                        <p class="text-sm text-gray-600">Leg Asymmetry</p>
-                        <p class="text-lg font-bold {leg_color}">{leg_asymmetry:.1f}%</p>
-                    </div>
-                </div>
-                <p class="text-xs text-gray-500 mt-2">*Asymmetry >10% may indicate muscle imbalance</p>
-            </div>
-        </section>
-
-        <section class="bg-white rounded-xl shadow-md p-6">
-            <h2 class="text-3xl font-bold mb-6 text-center">Percentile Analysis & Goals</h2>
-            
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-6">
-                    <h3 class="text-xl font-semibold mb-4 text-center">ALMI Goals</h3>
-                    <div class="space-y-3">
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm font-medium">Current ALMI:</span>
-                            <span class="font-bold text-blue-600">{almi:.2f} kg/m²</span>
-                        </div>
-                        <div class="space-y-2">
-                            {almi_goals}
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6">
-                    <h3 class="text-xl font-semibold mb-4 text-center">FFMI Goals</h3>
-                    <div class="space-y-3">
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm font-medium">Current FFMI:</span>
-                            <span class="font-bold text-green-600">{ffmi:.1f} kg/m²</span>
-                        </div>
-                        <div class="space-y-2">
-                            {ffmi_goals}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="bg-white rounded-xl shadow-md p-6">
-            <h2 class="text-3xl font-bold mb-6 text-center">Recommended Actions</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-yellow-50 rounded-lg p-6">
-                    <h3 class="text-lg font-semibold mb-4 text-yellow-800">Priority Goals</h3>
-                    <ul class="space-y-2 text-sm text-yellow-700">
-                        {priority_goals}
-                    </ul>
-                </div>
-                <div class="bg-green-50 rounded-lg p-6">
-                    <h3 class="text-lg font-semibold mb-4 text-green-800">Recommendations</h3>
-                    <ul class="space-y-2 text-sm text-green-700">
-                        {recommendations}
-                    </ul>
-                </div>
-            </div>
-        </section>
-
-        <footer class="text-center text-sm text-gray-500 pt-8 mt-8 border-t border-gray-200">
-            <p>&copy; 2025 Body Composition Analysis. All Rights Reserved.</p>
-            <p class="text-xs mt-1">Disclaimer: This analysis is for informational purposes and not a substitute for medical advice.</p>
-        </footer>
-    </div>
-</body>
-</html>"""
-    
-    # Calculate derived metrics
-    weight_unit = "lbs" if unit_system == "English" else "kg"
-    heightimport streamlit as st
+import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -852,168 +426,7 @@ def create_progress_timeline_chart(timeline_data, unit_system):
     
     return fig
 
-    # Calculate derived metrics
-    weight_unit = "lbs" if unit_system == "English" else "kg"
-    height_m = patient_data['height_m']
-    
-    # Display values in appropriate units
-    if unit_system == "English":
-        weight_display = f"{kg_to_lbs(body_comp_data['weight']):.1f} lbs"
-        height_display = f"{m_to_inches(height_m):.1f} in"
-        alm_display = kg_to_lbs(body_comp_data['alm'])
-        left_arm_display = kg_to_lbs(body_comp_data['left_arm'])
-        right_arm_display = kg_to_lbs(body_comp_data['right_arm'])
-        left_leg_display = kg_to_lbs(body_comp_data['left_leg'])
-        right_leg_display = kg_to_lbs(body_comp_data['right_leg'])
-    else:
-        weight_display = f"{body_comp_data['weight']:.1f} kg"
-        height_display = f"{height_m * 100:.1f} cm"
-        alm_display = body_comp_data['alm']
-        left_arm_display = body_comp_data['left_arm']
-        right_arm_display = body_comp_data['right_arm']
-        left_leg_display = body_comp_data['left_leg']
-        right_leg_display = body_comp_data['right_leg']
-    
-    # Calculate BMI
-    bmi = body_comp_data['weight'] / (height_m ** 2)
-    
-    # Calculate percentages of ALM
-    total_alm = body_comp_data['alm']
-    left_arm_pct = (body_comp_data['left_arm'] / total_alm) * 100
-    right_arm_pct = (body_comp_data['right_arm'] / total_alm) * 100
-    left_leg_pct = (body_comp_data['left_leg'] / total_alm) * 100
-    right_leg_pct = (body_comp_data['right_leg'] / total_alm) * 100
-    
-    # Calculate asymmetries
-    arm_asymmetry = abs(body_comp_data['left_arm'] - body_comp_data['right_arm']) / max(body_comp_data['left_arm'], body_comp_data['right_arm']) * 100
-    leg_asymmetry = abs(body_comp_data['left_leg'] - body_comp_data['right_leg']) / max(body_comp_data['left_leg'], body_comp_data['right_leg']) * 100
-    
-    # Color coding for asymmetries
-    arm_color = "text-red-600" if arm_asymmetry > 10 else "text-green-600"
-    leg_color = "text-red-600" if leg_asymmetry > 10 else "text-green-600"
-    
-    # Generate ALMI goals
-    almi_goals_html = ""
-    current_almi = body_comp_data['almi']
-    for percentile, target_almi in goals_data['almi_targets'].items():
-        current_mass = calculate_alm_from_almi(current_almi, height_m)
-        target_mass = calculate_alm_from_almi(target_almi, height_m)
-        mass_needed = max(0, target_mass - current_mass)
-        
-        if mass_needed == 0:
-            status = "✅ Achieved"
-            status_color = "text-green-600"
-        else:
-            if unit_system == "English":
-                status = f"Need +{kg_to_lbs(mass_needed):.1f} lbs"
-            else:
-                status = f"Need +{mass_needed:.1f} kg"
-            status_color = "text-orange-600"
-        
-        almi_goals_html += f"""
-        <div class="flex justify-between items-center py-1">
-            <span class="text-sm">{percentile}:</span>
-            <div class="text-right">
-                <span class="text-sm font-medium">{target_almi:.1f} kg/m²</span>
-                <span class="block text-xs {status_color}">{status}</span>
-            </div>
-        </div>"""
-    
-    # Generate FFMI goals
-    ffmi_goals_html = ""
-    current_ffmi = body_comp_data['ffmi']
-    for percentile, target_ffmi in goals_data['ffmi_targets'].items():
-        current_mass = calculate_ffm_from_ffmi(current_ffmi, height_m)
-        target_mass = calculate_ffm_from_ffmi(target_ffmi, height_m)
-        mass_needed = max(0, target_mass - current_mass)
-        
-        if mass_needed == 0:
-            status = "✅ Achieved"
-            status_color = "text-green-600"
-        else:
-            if unit_system == "English":
-                status = f"Need +{kg_to_lbs(mass_needed):.1f} lbs"
-            else:
-                status = f"Need +{mass_needed:.1f} kg"
-            status_color = "text-orange-600"
-        
-        ffmi_goals_html += f"""
-        <div class="flex justify-between items-center py-1">
-            <span class="text-sm">{percentile}:</span>
-            <div class="text-right">
-                <span class="text-sm font-medium">{target_ffmi:.1f} kg/m²</span>
-                <span class="block text-xs {status_color}">{status}</span>
-            </div>
-        </div>"""
-    
-    # Generate priority goals
-    priority_goals_html = ""
-    recommendations_html = ""
-    
-    # Determine priorities based on current metrics
-    if current_almi < goals_data['almi_targets']['25th percentile']:
-        priority_goals_html += "<li>• Increase appendicular lean mass to reach 25th percentile minimum</li>"
-        recommendations_html += "<li>• Implement progressive resistance training 3-4x/week</li>"
-        recommendations_html += "<li>• Ensure adequate protein intake (1.6-2.2g/kg body weight)</li>"
-    
-    if current_ffmi < goals_data['ffmi_targets']['50th percentile']:
-        priority_goals_html += "<li>• Build total lean mass to reach median population levels</li>"
-        recommendations_html += "<li>• Focus on compound movements (squats, deadlifts, presses)</li>"
-    
-    if body_comp_data['body_fat'] > 20 and patient_data['gender'] == 'Male':
-        priority_goals_html += "<li>• Reduce body fat percentage for improved health</li>"
-        recommendations_html += "<li>• Implement moderate caloric deficit with cardio</li>"
-    elif body_comp_data['body_fat'] > 25 and patient_data['gender'] == 'Female':
-        priority_goals_html += "<li>• Reduce body fat percentage for improved health</li>"
-        recommendations_html += "<li>• Implement moderate caloric deficit with cardio</li>"
-    
-    if arm_asymmetry > 10 or leg_asymmetry > 10:
-        priority_goals_html += "<li>• Address muscle imbalances between limbs</li>"
-        recommendations_html += "<li>• Include unilateral exercises and corrective work</li>"
-    
-    if body_comp_data.get('vat_mass', 500) > 1000:
-        priority_goals_html += "<li>• Reduce visceral adipose tissue for metabolic health</li>"
-        recommendations_html += "<li>• Prioritize cardiovascular exercise and stress management</li>"
-    
-    # Default recommendations
-    recommendations_html += "<li>• Schedule follow-up DEXA scan in 6-12 months</li>"
-    recommendations_html += "<li>• Consider working with qualified fitness professional</li>"
-    
-    # Format the HTML
-    formatted_html = html_template.format(
-        patient_name=patient_data['name'],
-        dob=patient_data['dob'],
-        age=patient_data['age'],
-        gender=patient_data['gender'],
-        exam_date=datetime.now().strftime("%m/%d/%Y"),
-        height=height_display,
-        weight=weight_display,
-        bmi=bmi,
-        body_fat=body_comp_data['body_fat'],
-        vat_mass=body_comp_data.get('vat_mass', 450),
-        alm=alm_display,
-        almi=current_almi,
-        ffmi=current_ffmi,
-        weight_unit=weight_unit,
-        left_arm=left_arm_display,
-        right_arm=right_arm_display,
-        left_leg=left_leg_display,
-        right_leg=right_leg_display,
-        left_arm_pct=left_arm_pct,
-        right_arm_pct=right_arm_pct,
-        left_leg_pct=left_leg_pct,
-        right_leg_pct=right_leg_pct,
-        arm_asymmetry=arm_asymmetry,
-        leg_asymmetry=leg_asymmetry,
-        arm_color=arm_color,
-        leg_color=leg_color,
-        almi_goals=almi_goals_html,
-        ffmi_goals=ffmi_goals_html,
-        priority_goals=priority_goals_html,
-        recommendations=recommendations_html
-    )
-    
-    return formatted_html
+def generate_dexa_report_html(patient_data, scan_data, unit_system):
     """Generate a DEXA-style report HTML"""
     
     # Calculate derived metrics
@@ -1267,25 +680,8 @@ def main():
         # Create and display visualization
         if st.button("Generate Recomposition Analysis"):
             fig = create_recomp_visualization(recomp, unit_system)
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Create timeline visualization
-            if gender == "Male":
-                rates_kg = [0.68, 0.34, 0.11]  # kg per month
-            else:
-                rates_kg = [0.34, 0.17, 0.06]  # kg per month
-            
-            timeline_data = []
-            for i, (level, rate) in enumerate(zip(["Beginner (Year 1)", "Intermediate (Year 2-3)", "Advanced (Year 4+)"], rates_kg)):
-                months = target_lean_gain / rate
-                timeline_data.append({
-                    'experience': level,
-                    'monthly_rate_kg': rate,
-                    'timeline_months': months
-                })
-            
-            timeline_fig = create_progress_timeline_chart(timeline_data, unit_system)
-            st.plotly_chart(timeline_fig, use_container_width=True)
+            st.pyplot(fig)
+            plt.close()
     
     else:  # Limb-Specific Analysis
         # Unit system
@@ -1495,7 +891,8 @@ def main():
                 if st.button("Generate Percentile Chart"):
                     target_value = percentiles["75th percentile"]  # Default to 75th percentile
                     fig = create_percentile_visualization(current_metric, target_value, gender, calc_type)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.pyplot(fig)
+                    plt.close()
         
         elif target_method == "Visual Analysis":
             if limb_data and st.button("Generate Limb Analysis"):
@@ -1504,94 +901,52 @@ def main():
                     limb_data['left_leg'], limb_data['right_leg'], 
                     unit_system
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.pyplot(fig)
+                plt.close()
         
         # DEXA Report Generation
-        st.subheader("Generate Professional Reports")
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            patient_name = st.text_input("Patient Name:", value="John Doe")
-        with col2:
-            patient_dob = st.date_input("Date of Birth:", value=datetime(1990, 1, 1))
-        with col3:
-            report_type = st.selectbox("Report Type:", ["Body Composition Report", "BMD Analysis Report"])
+        st.subheader("Generate DEXA-Style Report")
         
         col1, col2 = st.columns(2)
-        
         with col1:
-            if st.button("Generate Report"):
+            patient_name = st.text_input("Patient Name:", value="John Doe")
+            patient_dob = st.date_input("Date of Birth:", value=datetime(1990, 1, 1))
+        
+        with col2:
+            if st.button("Generate DEXA Report"):
                 if current_metric and limb_data:
-                    # Calculate age
-                    age = (datetime.now() - datetime.combine(patient_dob, datetime.min.time())).days // 365
-                    
                     # Prepare patient data
                     patient_data = {
                         'name': patient_name,
                         'dob': patient_dob.strftime("%m/%d/%Y"),
-                        'age': age,
-                        'gender': gender,
                         'height_m': height_m,
-                        'height_display': height_display
+                        'height_cm': height_cm if unit_system == "Metric" else height_in * 2.54,
+                        'height_in': height_in if unit_system == "English" else height_cm / 2.54
                     }
                     
-                    if report_type == "Body Composition Report":
-                        # Prepare body composition data
-                        if not scan_data:  # If not from weight/BF input
-                            scan_data = {
-                                'weight': 70.0,  # Default values - could be enhanced
-                                'body_fat': 15.0,
-                                'alm': sum(limb_data.values()) if limb_data else calculate_alm_from_almi(current_metric, height_m),
-                                'almi': current_metric if calc_type == "ALMI" else calculate_almi_from_alm(sum(limb_data.values()), height_m),
-                                'ffmi': current_metric if calc_type == "FFMI" else calculate_ffmi_from_weight_bf(70.0, 15.0, height_m),
-                                'left_arm': limb_data['left_arm'],
-                                'right_arm': limb_data['right_arm'],
-                                'left_leg': limb_data['left_leg'],
-                                'right_leg': limb_data['right_leg'],
-                                'vat_mass': 450  # Default VAT mass
-                            }
-                        
-                        # Prepare goals data
-                        almi_targets = get_percentile_targets(gender, "ALMI")
-                        ffmi_targets = get_percentile_targets(gender, "FFMI")
-                        goals_data = {
-                            'almi_targets': almi_targets,
-                            'ffmi_targets': ffmi_targets
+                    # Prepare scan data
+                    if not scan_data:  # If not from weight/BF input
+                        scan_data = {
+                            'weight': 70.0,  # Default values
+                            'body_fat': 15.0,
+                            'alm': sum(limb_data.values()) if limb_data else calculate_alm_from_almi(current_metric, height_m),
+                            'left_arm': limb_data['left_arm'],
+                            'right_arm': limb_data['right_arm'],
+                            'left_leg': limb_data['left_leg'],
+                            'right_leg': limb_data['right_leg']
                         }
-                        
-                        # Generate body composition report
-                        html_report = generate_body_comp_report_html(patient_data, scan_data, goals_data, unit_system)
-                        
-                    else:  # BMD Analysis Report
-                        # Prepare BMD data (mock data for demonstration)
-                        bmd_data = {
-                            'left_femur_t': 1.2,   # Mock T-scores
-                            'right_femur_t': 1.4,
-                            'spine_t': 0.8
-                        }
-                        
-                        # Generate BMD report
-                        html_report = generate_bmd_report_html(patient_data, bmd_data, unit_system)
                     
-                    # Store report in session state for download
-                    st.session_state['generated_report'] = html_report
-                    st.session_state['report_filename'] = f"{report_type.lower().replace(' ', '_')}_{patient_name.replace(' ', '_')}.html"
+                    # Generate HTML report
+                    html_report = generate_dexa_report_html(patient_data, scan_data, unit_system)
                     
-                    st.success(f"{report_type} generated successfully!")
+                    # Provide download link
+                    b64 = base64.b64encode(html_report.encode()).decode()
+                    href = f'<a href="data:text/html;base64,{b64}" download="dexa_report_{patient_name.replace(" ", "_")}.html">Download DEXA Report</a>'
+                    st.markdown(href, unsafe_allow_html=True)
+                    
+                    st.success("DEXA report generated! Click the link above to download.")
                 else:
                     st.error("Please complete the body composition analysis first.")
-        
-        with col2:
-            # Download button - only show if report exists
-            if 'generated_report' in st.session_state:
-                b64 = base64.b64encode(st.session_state['generated_report'].encode()).decode()
-                href = f'<a href="data:text/html;base64,{b64}" download="{st.session_state["report_filename"]}">Download {report_type}</a>'
-                st.markdown(href, unsafe_allow_html=True)
-                
-                # Preview button
-                if st.button("Preview Report"):
-                    with st.expander("Report Preview", expanded=True):
-                        st.components.v1.html(st.session_state['generated_report'], height=600, scrolling=True)
         
         # Reference ranges
         st.subheader("Reference Information")

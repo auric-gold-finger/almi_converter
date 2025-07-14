@@ -67,7 +67,7 @@ def create_percentile_visualization(current_metric, target_metric, gender):
     fig = go.Figure()
     
     # Add percentile bars with nicer colors
-    colors = px.colors.sequential.Viridis[:5]
+    colors = px.colors.sequential.Plasma_r[:5]
     
     fig.add_trace(go.Bar(
         x=percentile_names,
@@ -83,22 +83,22 @@ def create_percentile_visualization(current_metric, target_metric, gender):
     fig.add_hline(
         y=current_metric,
         line_dash="dash",
-        line_color="red",
+        line_color="#FF4B4B",
         line_width=3,
         annotation_text=f"Current: {current_metric:.1f}",
         annotation_position="top right",
-        annotation_font=dict(color="red", size=14)
+        annotation_font=dict(color="#FF4B4B", size=14)
     )
     
     # Add target value line
     fig.add_hline(
         y=target_metric,
         line_dash="dash",
-        line_color="green",
+        line_color="#00C853",
         line_width=3,
         annotation_text=f"Target: {target_metric:.1f}",
         annotation_position="bottom right",
-        annotation_font=dict(color="green", size=14)
+        annotation_font=dict(color="#00C853", size=14)
     )
     
     # Update layout for nicer look
@@ -107,22 +107,31 @@ def create_percentile_visualization(current_metric, target_metric, gender):
             text=f'ALMI Percentile Goals for {gender}s',
             x=0.5,
             xanchor='center',
-            font=dict(size=18, color='#1f2937')
+            font=dict(size=18, color='#333333')
         ),
         xaxis_title="Percentile",
         yaxis_title="ALMI (kg/m²)",
         height=500,
-        font=dict(family="Arial, sans-serif"),
-        plot_bgcolor='rgba(240,240,240,0.5)',
-        paper_bgcolor='white',
+        font=dict(family="Helvetica, sans-serif", color="#333333"),
+        plot_bgcolor='rgba(255,255,255,1)',
+        paper_bgcolor='rgba(255,255,255,1)',
         showlegend=False,
-        bargap=0.2,
-        template='plotly_white'
+        bargap=0.15,
+        template='plotly_white',
+        margin=dict(l=40, r=40, t=60, b=40),
+        xaxis=dict(
+            tickfont=dict(size=12),
+            titlefont=dict(size=14)
+        ),
+        yaxis=dict(
+            tickfont=dict(size=12),
+            titlefont=dict(size=14)
+        )
     )
     
     # Update axes
-    fig.update_xaxes(tickangle=45, gridcolor='white')
-    fig.update_yaxes(gridcolor='white')
+    fig.update_xaxes(tickangle=45, gridcolor='rgba(0,0,0,0.05)')
+    fig.update_yaxes(gridcolor='rgba(0,0,0,0.05)')
     
     return fig
 
@@ -137,19 +146,21 @@ def create_progress_timeline_chart(mass_needed_lbs, experience_level):
     
     fig = go.Figure()
     
-    # Horizontal bar with gloss (gradient)
+    # Horizontal bar with gloss (gradient and opacity)
     fig.add_trace(go.Bar(
         y=[experience_level],
         x=[timeline_months],
         orientation='h',
         name='Estimated Months',
         marker=dict(
-            color='rgba(0, 200, 255, 0.8)',
-            line=dict(color='rgba(0, 150, 255, 1)', width=2),
-            colorscale='Blues'  # Gradient for gloss
+            color=timeline_months,
+            colorscale='Blues',
+            line=dict(color='rgba(0, 150, 255, 0.8)', width=1.5),
+            opacity=0.9
         ),
         text=[f'{timeline_months:.1f} months' if timeline_months > 0 else 'Achieved'],
-        textposition='auto',
+        textposition='inside',
+        insidetextfont=dict(color='white', size=14),
         hovertemplate='<b>%{y}</b><br>Est. Time: %{x:.1f} months<extra></extra>'
     ))
     
@@ -159,20 +170,28 @@ def create_progress_timeline_chart(mass_needed_lbs, experience_level):
             text='Estimated Timeline to Goal',
             x=0.5,
             xanchor='center',
-            font=dict(size=18, color='#1f2937')
+            font=dict(size=18, color='#333333')
         ),
         yaxis_title="Experience Level",
         xaxis_title="Months to Goal",
         height=300,
-        font=dict(family="Arial, sans-serif"),
-        plot_bgcolor='rgba(240,240,240,0.5)',
-        paper_bgcolor='white',
+        font=dict(family="Helvetica, sans-serif", color="#333333"),
+        plot_bgcolor='rgba(255,255,255,1)',
+        paper_bgcolor='rgba(255,255,255,1)',
         showlegend=False,
         bargap=0.2,
-        template='plotly_white'
+        template='plotly_white',
+        margin=dict(l=40, r=40, t=60, b=40),
+        xaxis=dict(
+            tickfont=dict(size=12),
+            titlefont=dict(size=14),
+            gridcolor='rgba(0,0,0,0.05)'
+        ),
+        yaxis=dict(
+            tickfont=dict(size=12),
+            titlefont=dict(size=14)
+        )
     )
-    
-    fig.update_xaxes(gridcolor='white')
     
     return fig, timeline_months
 
@@ -191,27 +210,37 @@ def main():
     st.markdown("""
         <style>
         .stApp {
-            background-color: #f0f2f6;
+            background-color: #ffffff;
         }
         .sidebar .sidebar-content {
-            background-color: #ffffff;
+            background-color: #f8f9fa;
             padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
         .stNumberInput > div > div > input {
-            background-color: #f8f9fa;
-            border: 1px solid #ced4da;
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
             border-radius: 4px;
+            padding: 8px;
         }
         .stSelectbox > div > div > div {
-            background-color: #f8f9fa;
-            border: 1px solid #ced4da;
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
             border-radius: 4px;
+            padding: 8px;
         }
         .stRadio > div > label > div {
-            background-color: #f8f9fa;
-            border: 1px solid #ced4da;
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 8px;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .stDataFrame {
+            border: 1px solid #dee2e6;
             border-radius: 4px;
         }
         </style>

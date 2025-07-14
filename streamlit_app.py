@@ -239,51 +239,6 @@ def style_dataframe(df):
 def main():
     st.set_page_config(layout="wide", page_title="DEXA ALMI Goal Calculator")
     
-    # Minimal CSS for input enhancements
-    st.markdown("""
-        <style>
-        .stNumberInput > div > div > input {
-            border: 1px solid #E0E0E0;
-            border-radius: 6px;
-            padding: 10px;
-            font-size: 14px;
-            transition: border-color 0.3s;
-        }
-        .stNumberInput > div > div > input:focus {
-            border-color: #1E90FF;
-            outline: none;
-        }
-        .stSelectbox > div > div > div {
-            border: 1px solid #E0E0E0;
-            border-radius: 6px;
-            padding: 10px;
-            font-size: 14px;
-            transition: border-color 0.3s;
-        }
-        .stSelectbox > div > div > div:focus-within {
-            border-color: #1E90FF;
-            outline: none;
-        }
-        .stRadio > div > label > div {
-            border: 1px solid #E0E0E0;
-            border-radius: 6px;
-            padding: 10px;
-            font-size: 14px;
-            transition: border-color 0.3s;
-        }
-        .stRadio > div > label > div:hover {
-            border-color: #1E90FF;
-        }
-        .st-container {
-            border: 1px solid #E0E0E0;
-            border-radius: 6px;
-            padding: 15px;
-            margin: 10px 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        </style>
-    """, unsafe_allow_html=True)
-    
     st.sidebar.title("Input Parameters")
     unit_system = st.sidebar.radio("Units:", ["English", "Metric"], index=0, key="unit_system")
     gender = st.sidebar.selectbox("Gender:", ["Male", "Female"], key="gender")

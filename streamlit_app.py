@@ -257,7 +257,7 @@ def create_limb_composition_chart(left_arm, right_arm, left_leg, right_leg, unit
     
     # Data
     labels = ['Left Arm', 'Right Arm', 'Left Leg', 'Right Leg']
-    colors = ['#267DFF', '#66A3FF', '#F3817D', '#DA5955']
+    colors = px.colors.qualitative.Pastel[:4]  # Nicer colors
     
     # 1. Pie chart
     fig.add_trace(go.Pie(
@@ -282,8 +282,8 @@ def create_limb_composition_chart(left_arm, right_arm, left_leg, right_leg, unit
     ), row=1, col=2)
     
     # Calculate symmetry
-    arm_symmetry = abs(limb_masses[0] - limb_masses[1]) / max(limb_masses[0], limb_masses[1]) * 100
-    leg_symmetry = abs(limb_masses[2] - limb_masses[3]) / max(limb_masses[2], limb_masses[3]) * 100
+    arm_symmetry = abs(limb_masses[0] - limb_masses[1]) / max(limb_masses[0], limb_masses[1]) * 100 if max(limb_masses[0], limb_masses[1]) > 0 else 0
+    leg_symmetry = abs(limb_masses[2] - limb_masses[3]) / max(limb_masses[2], limb_masses[3]) * 100 if max(limb_masses[2], limb_masses[3]) > 0 else 0
     
     # Add symmetry annotation
     fig.add_annotation(
@@ -326,8 +326,8 @@ def create_percentile_visualization(current_metric, target_metric, gender, metri
     # Create bar chart
     fig = go.Figure()
     
-    # Add percentile bars
-    colors = ['#DA5955', '#F3817D', '#757575', '#66A3FF', '#267DFF']
+    # Add percentile bars with nicer colors
+    colors = px.colors.sequential.Blues[:5]
     
     fig.add_trace(go.Bar(
         x=percentile_names,
@@ -335,7 +335,7 @@ def create_percentile_visualization(current_metric, target_metric, gender, metri
         name='Percentiles',
         marker_color=colors,
         text=[f'{val:.1f}' for val in percentile_values],
-        textposition='auto',
+        textposition='outside',
         hovertemplate='<b>%{x}</b><br>%{y:.1f} kg/m²<extra></extra>'
     ))
     
@@ -346,7 +346,8 @@ def create_percentile_visualization(current_metric, target_metric, gender, metri
         line_color="red",
         line_width=3,
         annotation_text=f"Current: {current_metric:.1f}",
-        annotation_position="top right"
+        annotation_position="top right",
+        annotation_font=dict(color="red", size=14)
     )
     
     # Add target value line
@@ -356,10 +357,11 @@ def create_percentile_visualization(current_metric, target_metric, gender, metri
         line_color="green",
         line_width=3,
         annotation_text=f"Target: {target_metric:.1f}",
-        annotation_position="bottom right"
+        annotation_position="bottom right",
+        annotation_font=dict(color="green", size=14)
     )
     
-    # Update layout
+    # Update layout for nicer look
     fig.update_layout(
         title=dict(
             text=f'{metric_type} Percentile Goals for {gender}s',
@@ -371,14 +373,15 @@ def create_percentile_visualization(current_metric, target_metric, gender, metri
         yaxis_title=f"{metric_type} (kg/m²)",
         height=500,
         font=dict(family="Arial, sans-serif"),
-        plot_bgcolor='white',
+        plot_bgcolor='rgba(240,240,240,0.5)',
         paper_bgcolor='white',
-        showlegend=False
+        showlegend=False,
+        bargap=0.2
     )
     
     # Update axes
-    fig.update_xaxes(tickangle=45)
-    fig.update_yaxes(gridcolor='rgba(0,0,0,0.1)')
+    fig.update_xaxes(tickangle=45, gridcolor='white')
+    fig.update_yaxes(gridcolor='white')
     
     return fig
 
@@ -386,19 +389,23 @@ def create_progress_timeline_chart(mass_needed_lbs, experience_level):
     """Create timeline visualization for lean mass gain progress"""
     
     monthly_rate = estimate_gain_rate(experience_level)
-    timeline_months = max(1, mass_needed_lbs / monthly_rate) if monthly_rate > 0 else 0
+    if mass_needed_lbs > 0 and monthly_rate > 0:
+        timeline_months = max(1, mass_needed_lbs / monthly_rate)
+    else:
+        timeline_months = 0
     
     fig = go.Figure()
     
-    # Simple bar for time
+    # Horizontal bar for nicer look
     fig.add_trace(go.Bar(
-        x=[experience_level],
-        y=[timeline_months],
+        y=[experience_level],
+        x=[timeline_months],
+        orientation='h',
         name='Estimated Months',
-        marker_color='#267DFF',
-        text=[f'{timeline_months:.1f} months'],
+        marker_color=px.colors.qualitative.Pastel[0],
+        text=[f'{timeline_months:.1f} months' if timeline_months > 0 else 'Achieved'],
         textposition='auto',
-        hovertemplate='<b>%{x}</b><br>Est. Time: %{y:.1f} months<extra></extra>'
+        hovertemplate='<b>%{y}</b><br>Est. Time: %{x:.1f} months<extra></extra>'
     ))
     
     # Update layout
@@ -409,16 +416,16 @@ def create_progress_timeline_chart(mass_needed_lbs, experience_level):
             xanchor='center',
             font=dict(size=18, color='#1f2937')
         ),
-        xaxis_title="Experience Level",
-        yaxis_title="Months to Goal",
-        height=400,
+        yaxis_title="Experience Level",
+        xaxis_title="Months to Goal",
+        height=300,
         font=dict(family="Arial, sans-serif"),
         plot_bgcolor='white',
         paper_bgcolor='white',
         showlegend=False
     )
     
-    fig.update_yaxes(gridcolor='rgba(0,0,0,0.1)')
+    fig.update_xaxes(gridcolor='rgba(0,0,0,0.1)')
     
     return fig, timeline_months
 
@@ -596,27 +603,33 @@ def main():
         
         short_term_target = percentiles["75th percentile"]  # Short-term: health baseline
         long_term_target = percentiles["95th percentile"]  # Long-term: elite/longevity
+        fig_timeline_short = None
+        fig_timeline_long = None
         
         for perc, target_almi in percentiles.items():
             target_alm_kg = calculate_alm_from_almi(target_almi, height_m)
             mass_needed_kg = max(0, target_alm_kg - current_alm_kg)
             mass_needed_lbs = kg_to_lbs(mass_needed_kg)
             
-            if perc == "75th percentile":
-                label = "Short-term Goal"
-                fig_timeline_short, months_short = create_progress_timeline_chart(mass_needed_lbs, experience_level)
-            elif perc == "95th percentile":
-                label = "Long-term Goal"
-                fig_timeline_long, months_long = create_progress_timeline_chart(mass_needed_lbs, experience_level)
+            fig_timeline, months = create_progress_timeline_chart(mass_needed_lbs, experience_level)
+            
+            if mass_needed_lbs <= 0:
+                mass_str = "Achieved"
+                months_str = "Achieved"
             else:
-                label = ""
-                months = 0
+                mass_str = f"{mass_needed_lbs:.1f}"
+                months_str = f"{months:.1f}"
+            
+            if perc == "75th percentile":
+                fig_timeline_short = fig_timeline
+            elif perc == "95th percentile":
+                fig_timeline_long = fig_timeline
             
             results_data.append({
                 "Percentile": perc,
                 "Target ALMI": f"{target_almi:.1f} kg/m²",
-                "Lean Mass Needed (lbs)": f"{mass_needed_lbs:.1f}",
-                "Est. Time (months)": f"{months:.1f}" if label else ""
+                "Lean Mass Needed (lbs)": mass_str,
+                "Est. Time (months)": months_str
             })
         
         results_df = pd.DataFrame(results_data)
@@ -630,13 +643,31 @@ def main():
         st.subheader("Timelines")
         col_t1, col_t2 = st.columns(2)
         with col_t1:
-            st.write("Short-term Timeline")
-            st.plotly_chart(fig_timeline_short, use_container_width=True)
+            st.write("Short-term Timeline (75th percentile)")
+            if fig_timeline_short:
+                st.plotly_chart(fig_timeline_short, use_container_width=True)
         with col_t2:
-            st.write("Long-term Timeline")
-            st.plotly_chart(fig_timeline_long, use_container_width=True)
+            st.write("Long-term Timeline (95th percentile)")
+            if fig_timeline_long:
+                st.plotly_chart(fig_timeline_long, use_container_width=True)
         
         st.caption("Note: Gain rates are approximate (Beginner: 1.5 lbs/month ALM, Intermediate: 0.75, Advanced: 0.375). Adjust for age/diet/training. ALMI declines ~1% per decade after 30; consider age in goals.")
+    
+    # Custom Goal
+    st.subheader("Custom ALMI Goal")
+    custom_almi = st.number_input("Custom Target ALMI (kg/m²):", min_value=3.0, max_value=15.0, value=9.0, step=0.1)
+    if custom_almi:
+        target_alm_kg = calculate_alm_from_almi(custom_almi, height_m)
+        mass_needed_kg = max(0, target_alm_kg - current_alm_kg)
+        mass_needed_lbs = kg_to_lbs(mass_needed_kg)
+        fig_custom, months_custom = create_progress_timeline_chart(mass_needed_lbs, experience_level)
+        
+        if mass_needed_lbs <= 0:
+            st.success("Goal Achieved!")
+        else:
+            st.write(f"Lean Mass Needed: {mass_needed_lbs:.1f} lbs")
+            st.write(f"Estimated Time: {months_custom:.1f} months")
+            st.plotly_chart(fig_custom, use_container_width=True)
     
     # Rest of the app (existing features)
     st.subheader("Advanced Analysis")

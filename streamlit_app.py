@@ -1,3 +1,4 @@
+```python
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -545,7 +546,7 @@ def generate_dexa_report_html(patient_data, scan_data, unit_system):
         </section>
 
         <footer class="text-center text-sm text-gray-500 pt-8 mt-8 border-t border-gray-200">
-            <p>&copy; 2025 Body Composition Analysis. All Rights Reserved.</p>
+            <p>© 2025 Body Composition Analysis. All Rights Reserved.</p>
             <p class="text-xs mt-1">Disclaimer: This is a visualization of your body composition data and not a medical diagnosis. Consult with your healthcare provider.</p>
         </footer>
     </div>
@@ -680,8 +681,7 @@ def main():
         # Create and display visualization
         if st.button("Generate Recomposition Analysis"):
             fig = create_recomp_visualization(recomp, unit_system)
-            st.pyplot(fig)
-            plt.close()
+            st.plotly_chart(fig, use_container_width=True)
     
     else:  # Limb-Specific Analysis
         # Unit system
@@ -891,8 +891,7 @@ def main():
                 if st.button("Generate Percentile Chart"):
                     target_value = percentiles["75th percentile"]  # Default to 75th percentile
                     fig = create_percentile_visualization(current_metric, target_value, gender, calc_type)
-                    st.pyplot(fig)
-                    plt.close()
+                    st.plotly_chart(fig, use_container_width=True)
         
         elif target_method == "Visual Analysis":
             if limb_data and st.button("Generate Limb Analysis"):
@@ -901,8 +900,7 @@ def main():
                     limb_data['left_leg'], limb_data['right_leg'], 
                     unit_system
                 )
-                st.pyplot(fig)
-                plt.close()
+                st.plotly_chart(fig, use_container_width=True)
         
         # DEXA Report Generation
         st.subheader("Generate DEXA-Style Report")

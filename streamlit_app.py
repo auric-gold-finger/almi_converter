@@ -49,12 +49,12 @@ def get_percentile_targets(gender):
 
 def estimate_gain_rate(experience_level):
     """Estimate monthly lean mass gain rate in lbs (for ALM, approximate)"""
-    if experience_level == "Beginner":
-        return 1.5
-    elif experience_level == "Intermediate":
-        return 0.75
-    else:  # Advanced
-        return 0.375
+    rates = {
+        "Beginner": 1.5,
+        "Intermediate": 0.75,
+        "Advanced": 0.375
+    }
+    return rates.get(experience_level, 0.75)  # Default to Intermediate if invalid
 
 def create_percentile_visualization(current_metric, target_metric, gender):
     """Create percentile goal visualization using Plotly"""
@@ -139,7 +139,6 @@ def create_percentile_visualization(current_metric, target_metric, gender):
 
 def create_progress_timeline_chart(mass_needed_lbs, experience_level):
     """Create timeline visualization for lean mass gain progress"""
-    
     monthly_rate = estimate_gain_rate(experience_level)
     if mass_needed_lbs > 0 and monthly_rate > 0:
         timeline_months = max(1, mass_needed_lbs / monthly_rate)
@@ -148,15 +147,14 @@ def create_progress_timeline_chart(mass_needed_lbs, experience_level):
     
     fig = go.Figure()
     
-    # Horizontal bar with gloss (gradient and 3D effect)
+    # Horizontal bar with improved color contrast
     fig.add_trace(go.Bar(
         y=[experience_level],
         x=[timeline_months],
         orientation='h',
         name='Estimated Months',
         marker=dict(
-            color=timeline_months / max(1, timeline_months) if timeline_months > 0 else 0,  # Normalized color intensity
-            colorscale='Blues',
+            color='#1E90FF' if timeline_months > 0 else '#4CAF50',  # Blue for progress, green for achieved
             line=dict(color='#1E90FF', width=2),
             opacity=0.9
         ),
@@ -192,10 +190,6 @@ def create_progress_timeline_chart(mass_needed_lbs, experience_level):
         yaxis=dict(
             tickfont=dict(size=12),
             titlefont=dict(size=16)
-        ),
-        scene=dict(
-            aspectmode='manual',
-            aspectratio=dict(x=1, y=0.5, z=0.5)
         )
     )
     
@@ -203,6 +197,8 @@ def create_progress_timeline_chart(mass_needed_lbs, experience_level):
 
 def find_next_percentile(current_almi, percentiles):
     """Find the next reasonable percentile cut point"""
+    if current_almi <= 0:
+        return min(percentiles.values())  # Return lowest percentile for invalid ALMI
     sorted_percentiles = sorted(percentiles.items(), key=lambda x: x[1])
     for perc, value in sorted_percentiles:
         if current_almi < value:
@@ -285,30 +281,61 @@ def main():
     """, unsafe_allow_html=True)
     
     st.sidebar.title("Input Parameters")
-    unit_system = st.sidebar.radio("Units:", ["English", "Metric"], index=0, key="unit_system")  # Default English for lbs
+    unit_system = st.sidebar.radio("Units:", ["English", "Metric"], index=0, key="unit_system")
     gender = st.sidebar.selectbox("Gender:", ["Male", "Female"], key="gender")
-    if unit_system == "Metric":
-        height_cm = st.sidebar.number_input("Height (cm):", min_value=100.0, max_value=250.0, value=170.0, step=0.5, key="height_cm")
-        height_m = height_cm / 100
-    else:
-        height_in = st.sidebar.number_input("Height (in):", min_value=48.0, max_value=96.0, value=68.0, step=0.5, key="height_in")
-        height_m = inches_to_m(height_in)
-    current_almi = st.sidebar.number_input("Current ALMI (kg/m²):", min_value=3.0, max_value=15.0, value=7.0, step=0.1, key="current_almi")
+    
+    # Input validation for height
+    try:
+        if unit_system == "Metric":
+            height_cm = st.sidebar.number_input("Height (cm):", min_value=100.0, max_value=250.0, value=170.0, step=0.5, key="height_cm")
+            if height_cm <= 0:
+                st.sidebar.error("Height must be positive.")
+                return
+            height_m = height_cm / 100
+        else:
+            height_in = st.sidebar.number_input("Height (in):", min_value=48.0, max_value=96.0, value=68.0, step=0.5, key="height_in")
+            if height_in <= 0:
+                st.sidebar.error("Height must be positive.")
+                return
+            height_m = inches_to_m(height_in)
+    except ValueError:
+        st.sidebar.error("Invalid height input.")
+        return
+    
+    # Input validation for ALMI
+    try:
+        current_almi = st.sidebar.number_input("Current ALMI (kg/m²):", min_value=3.0, max_value=15.0, value=7.0, step=0.1, key="current_almi")
+        if current_almi <= 0:
+            st.sidebar.error("Current ALMI must be positive.")
+            return
+    except ValueError:
+        st.sidebar.error("Invalid ALMI input.")
+        return
+    
     experience_level = st.sidebar.selectbox("Training Experience:", ["Beginner", "Intermediate", "Advanced"], key="experience_level")
     
     percentiles = get_percentile_targets(gender)
     suggested_almi = find_next_percentile(current_almi, percentiles)
-    target_almi = st.sidebar.number_input("Target ALMI (kg/m²):", min_value=3.0, max_value=15.0, value=suggested_almi, step=0.1, key="target_almi")
+    
+    # Input validation for target ALMI
+    try:
+        target_almi = st.sidebar.number_input("Target ALMI (kg/m²):", min_value=3.0, max_value=15.0, value=suggested_almi, step=0.1, key="target_almi")
+        if target_almi <= 0:
+            st.sidebar.error("Target ALMI must be positive.")
+            return
+    except ValueError:
+        st.sidebar.error("Invalid target ALMI input.")
+        return
     
     st.title("DEXA ALMI Goal Calculator")
     st.write("Analyze your ALMI from DEXA scans, set goals, and get realistic timelines. Disclaimer: Consult a healthcare provider for personalized advice.")
     
-    if current_almi:
+    try:
         current_alm_kg = calculate_alm_from_almi(current_almi, height_m)
         results_data = []
         
-        short_term_target = percentiles["75th percentile"]  # Short-term: health baseline
-        long_term_target = percentiles["95th percentile"]  # Long-term: elite/longevity
+        short_term_target = percentiles["75th percentile"]
+        long_term_target = percentiles["95th percentile"]
         fig_timeline_short = None
         fig_timeline_long = None
         
@@ -371,6 +398,9 @@ def main():
                 st.plotly_chart(fig_timeline_long, use_container_width=True)
         
         st.caption("Note: Gain rates are approximate (Beginner: 1.5 lbs/month ALM, Intermediate: 0.75, Advanced: 0.375). Adjust for age/diet/training. ALMI declines ~1% per decade after 30; consider age in goals.")
+    
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}. Please check your inputs and try again.")
 
 if __name__ == "__main__":
     main()

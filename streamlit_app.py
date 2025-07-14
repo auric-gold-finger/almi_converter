@@ -205,65 +205,44 @@ def find_next_percentile(current_almi, percentiles):
             return value
     return max(percentiles.values())  # If above all, suggest the highest
 
-def dataframe_to_html_table(df):
-    """Convert DataFrame to styled HTML table"""
-    html = """
-    <style>
-        .styled-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-family: 'Roboto', sans-serif;
-            font-size: 14px;
-            color: #2C3E50;
-            margin: 20px 0;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-        }
-        .styled-table th, .styled-table td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid #E0E0E0;
-        }
-        .styled-table th {
-            background-color: #F8F9FA;
-            font-weight: bold;
-            color: #1E90FF;
-        }
-        .styled-table tr:nth-child(even) {
-            background-color: #F9FAFB;
-        }
-        .styled-table tr:hover {
-            background-color: #F1F5F9;
-        }
-    </style>
-    <table class="styled-table">
-        <thead>
-            <tr>
-    """
-    for col in df.columns:
-        html += f"<th>{col}</th>"
-    html += "</tr></thead><tbody>"
-    
-    for _, row in df.iterrows():
-        html += "<tr>"
-        for val in row:
-            html += f"<td>{val}</td>"
-        html += "</tr>"
-    html += "</tbody></table>"
-    
-    return html
+def style_dataframe(df):
+    """Apply styling to DataFrame for display"""
+    return df.style.set_properties(**{
+        'background-color': '#FFFFFF',
+        'color': '#2C3E50',
+        'border-color': '#E0E0E0',
+        'font-family': 'Roboto, sans-serif',
+        'font-size': '14px',
+        'text-align': 'left',
+        'padding': '12px'
+    }).set_table_styles([
+        {'selector': 'th', 'props': [
+            ('background-color', '#F8F9FA'),
+            ('color', '#1E90FF'),
+            ('font-weight', 'bold'),
+            ('padding', '12px'),
+            ('text-align', 'left')
+        ]},
+        {'selector': 'tr:nth-child(even)', 'props': [
+            ('background-color', '#F9FAFB')
+        ]},
+        {'selector': 'tr:hover', 'props': [
+            ('background-color', '#F1F5F9')
+        ]},
+        {'selector': 'table', 'props': [
+            ('border-collapse', 'collapse'),
+            ('box-shadow', '0 4px 8px rgba(0,0,0,0.05)'),
+            ('margin', '20px 0')
+        ]}
+    ])
 
 def main():
     st.set_page_config(layout="wide", page_title="DEXA ALMI Goal Calculator")
     
-    # Custom CSS for a sleek, modern layout (sidebar background removed)
+    # Minimal CSS for input enhancements
     st.markdown("""
         <style>
-        .stApp {
-            background-color: #FFFFFF;
-            font-family: 'Roboto', sans-serif;
-        }
         .stNumberInput > div > div > input {
-            background-color: #FFFFFF;
             border: 1px solid #E0E0E0;
             border-radius: 6px;
             padding: 10px;
@@ -275,7 +254,6 @@ def main():
             outline: none;
         }
         .stSelectbox > div > div > div {
-            background-color: #FFFFFF;
             border: 1px solid #E0E0E0;
             border-radius: 6px;
             padding: 10px;
@@ -287,7 +265,6 @@ def main():
             outline: none;
         }
         .stRadio > div > label > div {
-            background-color: #FFFFFF;
             border: 1px solid #E0E0E0;
             border-radius: 6px;
             padding: 10px;
@@ -297,25 +274,12 @@ def main():
         .stRadio > div > label > div:hover {
             border-color: #1E90FF;
         }
-        h1, h2, h3, h4, h5, h6 {
-            color: #2C3E50;
-            font-family: 'Roboto', sans-serif;
-        }
-        .stAlert {
-            border-radius: 6px;
-            background-color: #E8F5E9;
-            color: #2E7D32;
-        }
-        .card {
-            background-color: #FFFFFF;
+        .st-container {
             border: 1px solid #E0E0E0;
             border-radius: 6px;
             padding: 15px;
             margin: 10px 0;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            font-family: 'Roboto', sans-serif;
-            font-size: 16px;
-            color: #2C3E50;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -368,7 +332,8 @@ def main():
         return
     
     st.title("DEXA ALMI Goal Calculator")
-    st.markdown('<div class="card">Analyze your ALMI from DEXA scans, set goals, and get realistic timelines. Disclaimer: Consult a healthcare provider for personalized advice.</div>', unsafe_allow_html=True)
+    with st.container():
+        st.markdown("Analyze your ALMI from DEXA scans, set goals, and get realistic timelines. *Disclaimer: Consult a healthcare provider for personalized advice.*")
     
     try:
         current_alm_kg = calculate_alm_from_almi(current_almi, height_m)
@@ -406,7 +371,9 @@ def main():
             })
         
         results_df = pd.DataFrame(results_data)
-        st.markdown(dataframe_to_html_table(results_df), unsafe_allow_html=True)
+        with st.container():
+            st.subheader("Percentile Targets")
+            st.dataframe(style_dataframe(results_df), use_container_width=True)
         
         # Custom target calculation
         target_alm_kg = calculate_alm_from_almi(target_almi, height_m)
@@ -414,30 +381,40 @@ def main():
         mass_needed_lbs = kg_to_lbs(mass_needed_kg)
         fig_custom, months_custom = create_progress_timeline_chart(mass_needed_lbs, experience_level)
         
-        if mass_needed_lbs <= 0:
-            st.success("Target Achieved!")
-        else:
-            st.markdown(f'<div class="card"><strong>Target Lean Mass Needed:</strong> {mass_needed_lbs:.1f} lbs</div>', unsafe_allow_html=True)
-            st.markdown(f'<div class="card"><strong>Estimated Time to Target:</strong> {months_custom:.1f} months</div>', unsafe_allow_html=True)
-            st.plotly_chart(fig_custom, use_container_width=True)
+        with st.container():
+            st.subheader("Custom Target")
+            if mass_needed_lbs <= 0:
+                st.success("Target Achieved!")
+            else:
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Target Lean Mass Needed", f"{mass_needed_lbs:.1f} lbs")
+                with col2:
+                    st.metric("Estimated Time to Target", f"{months_custom:.1f} months")
+                st.plotly_chart(fig_custom, use_container_width=True)
         
         # Display percentile chart
-        fig_percentile = create_percentile_visualization(current_almi, target_almi, gender)
-        st.plotly_chart(fig_percentile, use_container_width=True)
+        with st.container():
+            st.subheader("ALMI Percentile Chart")
+            fig_percentile = create_percentile_visualization(current_almi, target_almi, gender)
+            st.plotly_chart(fig_percentile, use_container_width=True)
         
         # Display timelines for short and long term
         st.subheader("Percentile Timelines")
         col_t1, col_t2 = st.columns(2)
         with col_t1:
-            st.markdown('<div class="card"><strong>Short-term Timeline (75th percentile)</strong></div>', unsafe_allow_html=True)
-            if fig_timeline_short:
-                st.plotly_chart(fig_timeline_short, use_container_width=True)
+            with st.container():
+                st.markdown("**Short-term Timeline (75th percentile)**")
+                if fig_timeline_short:
+                    st.plotly_chart(fig_timeline_short, use_container_width=True)
         with col_t2:
-            st.markdown('<div class="card"><strong>Long-term Timeline (95th percentile)</strong></div>', unsafe_allow_html=True)
-            if fig_timeline_long:
-                st.plotly_chart(fig_timeline_long, use_container_width=True)
+            with st.container():
+                st.markdown("**Long-term Timeline (95th percentile)**")
+                if fig_timeline_long:
+                    st.plotly_chart(fig_timeline_long, use_container_width=True)
         
-        st.markdown('<div class="card"><strong>Note:</strong> Gain rates are approximate (Beginner: 1.5 lbs/month ALM, Intermediate: 0.75, Advanced: 0.375). Adjust for age/diet/training. ALMI declines ~1% per decade after 30; consider age in goals.</div>', unsafe_allow_html=True)
+        with st.container():
+            st.markdown("*Note: Gain rates are approximate (Beginner: 1.5 lbs/month ALM, Intermediate: 0.75, Advanced: 0.375). Adjust for age/diet/training. ALMI declines ~1% per decade after 30; consider age in goals.*")
     
     except Exception as e:
         st.error(f"An error occurred: {str(e)}. Please check your inputs and try again.")

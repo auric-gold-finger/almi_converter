@@ -116,7 +116,8 @@ def create_percentile_visualization(current_metric, target_metric, gender):
         plot_bgcolor='rgba(240,240,240,0.5)',
         paper_bgcolor='white',
         showlegend=False,
-        bargap=0.2
+        bargap=0.2,
+        template='plotly_white'
     )
     
     # Update axes
@@ -167,7 +168,8 @@ def create_progress_timeline_chart(mass_needed_lbs, experience_level):
         plot_bgcolor='rgba(240,240,240,0.5)',
         paper_bgcolor='white',
         showlegend=False,
-        bargap=0.2
+        bargap=0.2,
+        template='plotly_white'
     )
     
     fig.update_xaxes(gridcolor='white')
@@ -183,6 +185,38 @@ def find_next_percentile(current_almi, percentiles):
     return max(percentiles.values())  # If above all, suggest the highest
 
 def main():
+    st.set_page_config(layout="wide", page_title="DEXA ALMI Goal Calculator")
+    
+    # Custom CSS for nicer look
+    st.markdown("""
+        <style>
+        .stApp {
+            background-color: #f0f2f6;
+        }
+        .sidebar .sidebar-content {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .stNumberInput > div > div > input {
+            background-color: #f8f9fa;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+        }
+        .stSelectbox > div > div > div {
+            background-color: #f8f9fa;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+        }
+        .stRadio > div > label > div {
+            background-color: #f8f9fa;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
     st.sidebar.title("Input Parameters")
     unit_system = st.sidebar.radio("Units:", ["English", "Metric"], index=0)  # Default English for lbs
     gender = st.sidebar.selectbox("Gender:", ["Male", "Female"])

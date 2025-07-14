@@ -66,73 +66,74 @@ def create_percentile_visualization(current_metric, target_metric, gender):
     # Create bar chart
     fig = go.Figure()
     
-    # Add percentile bars with nicer colors
-    colors = px.colors.sequential.Teal
+    # Add percentile bars with a modern color gradient
+    colors = px.colors.sequential.Tealgrn
     
     fig.add_trace(go.Bar(
         x=percentile_names,
         y=percentile_values,
         name='Percentiles',
-        marker_color=colors,
+        marker=dict(
+            color=colors,
+            opacity=0.85,
+            line=dict(width=1, color='rgba(0,0,0,0.1)')
+        ),
         text=[f'{val:.1f}' for val in percentile_values],
         textposition='outside',
-        hovertemplate='<b>%{x}</b><br>%{y:.1f} kg/m²<extra></extra>',
-        opacity=0.9
+        hovertemplate='<b>%{x}</b><br>%{y:.1f} kg/m²<extra></extra>'
     ))
     
     # Add current value line
     fig.add_hline(
         y=current_metric,
         line_dash="dash",
-        line_color="#FF6347",
-        line_width=3,
+        line_color="#FF6B6B",
+        line_width=2.5,
         annotation_text=f"Current: {current_metric:.1f}",
         annotation_position="top right",
-        annotation_font=dict(color="#FF6347", size=14)
+        annotation_font=dict(color="#FF6B6B", size=14)
     )
     
     # Add target value line
     fig.add_hline(
         y=target_metric,
         line_dash="dash",
-        line_color="#32CD32",
-        line_width=3,
+        line_color="#4CAF50",
+        line_width=2.5,
         annotation_text=f"Target: {target_metric:.1f}",
         annotation_position="bottom right",
-        annotation_font=dict(color="#32CD32", size=14)
+        annotation_font=dict(color="#4CAF50", size=14)
     )
     
-    # Update layout for nicer look
+    # Update layout for a sleek, modern design
     fig.update_layout(
         title=dict(
             text=f'ALMI Percentile Goals for {gender}s',
             x=0.5,
             xanchor='center',
-            font=dict(size=20, color='#2C3E50')
+            font=dict(size=20, color='#2C3E50', family='Roboto')
         ),
         xaxis_title="Percentile",
         yaxis_title="ALMI (kg/m²)",
-        height=550,
-        font=dict(family="Roboto, sans-serif", color="#2C3E50"),
-        plot_bgcolor='#F0F4F8',
-        paper_bgcolor='#FFFFFF',
+        height=600,
+        font=dict(family="Roboto", color="#2C3E50"),
+        plot_bgcolor='rgba(245, 245, 245, 1)',
+        paper_bgcolor='rgba(255, 255, 255, 1)',
         showlegend=False,
         bargap=0.15,
         template='plotly_white',
-        margin=dict(l=50, r=50, t=80, b=50),
+        margin=dict(l=60, r=60, t=80, b=60),
         xaxis=dict(
             tickfont=dict(size=12),
-            titlefont=dict(size=16)
+            titlefont=dict(size=16),
+            gridcolor='rgba(0,0,0,0.05)'
         ),
         yaxis=dict(
             tickfont=dict(size=12),
             titlefont=dict(size=16),
-            gridcolor='#E0E0E0'
+            gridcolor='rgba(0,0,0,0.05)'
         )
     )
-    
-    # Update axes
-    fig.update_xaxes(tickangle=45, gridcolor='#E0E0E0')
     
     return fig
 
@@ -147,17 +148,17 @@ def create_progress_timeline_chart(mass_needed_lbs, experience_level):
     
     fig = go.Figure()
     
-    # Horizontal bar with gloss (gradient and opacity)
+    # Horizontal bar with gloss (gradient and 3D effect)
     fig.add_trace(go.Bar(
         y=[experience_level],
         x=[timeline_months],
         orientation='h',
         name='Estimated Months',
         marker=dict(
-            color=timeline_months,
-            colorscale='YlGnBu',
-            line=dict(color='#1E90FF', width=1.5),
-            opacity=0.85
+            color=timeline_months / max(1, timeline_months) if timeline_months > 0 else 0,  # Normalized color intensity
+            colorscale='Blues',
+            line=dict(color='#1E90FF', width=2),
+            opacity=0.9
         ),
         text=[f'{timeline_months:.1f} months' if timeline_months > 0 else 'Achieved'],
         textposition='inside',
@@ -165,32 +166,36 @@ def create_progress_timeline_chart(mass_needed_lbs, experience_level):
         hovertemplate='<b>%{y}</b><br>Est. Time: %{x:.1f} months<extra></extra>'
     ))
     
-    # Update layout for modern look
+    # Update layout for modern, dimensional look
     fig.update_layout(
         title=dict(
             text='Estimated Timeline to Goal',
             x=0.5,
             xanchor='center',
-            font=dict(size=20, color='#2C3E50')
+            font=dict(size=20, color='#2C3E50', family='Roboto')
         ),
         yaxis_title="Experience Level",
         xaxis_title="Months to Goal",
         height=350,
-        font=dict(family="Roboto, sans-serif", color="#2C3E50"),
-        plot_bgcolor='#F0F4F8',
-        paper_bgcolor='#FFFFFF',
+        font=dict(family="Roboto", color="#2C3E50"),
+        plot_bgcolor='rgba(245, 245, 245, 1)',
+        paper_bgcolor='rgba(255, 255, 255, 1)',
         showlegend=False,
         bargap=0.2,
         template='plotly_white',
-        margin=dict(l=50, r=50, t=60, b=50),
+        margin=dict(l=60, r=60, t=60, b=60),
         xaxis=dict(
             tickfont=dict(size=12),
             titlefont=dict(size=16),
-            gridcolor='#E0E0E0'
+            gridcolor='rgba(0,0,0,0.05)'
         ),
         yaxis=dict(
             tickfont=dict(size=12),
             titlefont=dict(size=16)
+        ),
+        scene=dict(
+            aspectmode='manual',
+            aspectratio=dict(x=1, y=0.5, z=0.5)
         )
     )
     
@@ -207,50 +212,74 @@ def find_next_percentile(current_almi, percentiles):
 def main():
     st.set_page_config(layout="wide", page_title="DEXA ALMI Goal Calculator")
     
-    # Custom CSS for nicer look
+    # Custom CSS for a sleek, modern layout
     st.markdown("""
         <style>
         .stApp {
             background-color: #FFFFFF;
+            font-family: 'Roboto', sans-serif;
         }
         .sidebar .sidebar-content {
             background-color: #F8F9FA;
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
         }
         .stNumberInput > div > div > input {
             background-color: #FFFFFF;
-            border: 1px solid #DEE2E6;
-            border-radius: 4px;
-            padding: 8px;
-            font-family: Roboto, sans-serif;
+            border: 1px solid #E0E0E0;
+            border-radius: 6px;
+            padding: 10px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        .stNumberInput > div > div > input:focus {
+            border-color: #1E90FF;
+            outline: none;
         }
         .stSelectbox > div > div > div {
             background-color: #FFFFFF;
-            border: 1px solid #DEE2E6;
-            border-radius: 4px;
-            padding: 8px;
-            font-family: Roboto, sans-serif;
+            border: 1px solid #E0E0E0;
+            border-radius: 6px;
+            padding: 10px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        .stSelectbox > div > div > div:focus-within {
+            border-color: #1E90FF;
+            outline: none;
         }
         .stRadio > div > label > div {
             background-color: #FFFFFF;
-            border: 1px solid #DEE2E6;
-            border-radius: 4px;
-            padding: 8px;
-            font-family: Roboto, sans-serif;
+            border: 1px solid #E0E0E0;
+            border-radius: 6px;
+            padding: 10px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        .stRadio > div > label > div:hover {
+            border-color: #1E90FF;
         }
         h1, h2, h3, h4, h5, h6 {
             color: #2C3E50;
-            font-family: Roboto, sans-serif;
+            font-family: 'Roboto', sans-serif;
         }
         .stDataFrame {
-            border: 1px solid #DEE2E6;
-            border-radius: 4px;
+            border: 1px solid #E0E0E0;
+            border-radius: 6px;
             overflow: hidden;
+            background-color: #FFFFFF;
         }
         .stAlert {
-            border-radius: 4px;
+            border-radius: 6px;
+            background-color: #E8F5E9;
+            color: #2E7D32;
+        }
+        .css-1aumxhk {
+            padding: 20px;
+            border-radius: 10px;
+            background-color: #FFFFFF;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
         }
         </style>
     """, unsafe_allow_html=True)

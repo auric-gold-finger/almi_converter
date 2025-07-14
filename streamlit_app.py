@@ -67,7 +67,7 @@ def create_percentile_visualization(current_metric, target_metric, gender):
     fig = go.Figure()
     
     # Add percentile bars with nicer colors
-    colors = px.colors.sequential.Plasma_r[:5]
+    colors = px.colors.sequential.Teal
     
     fig.add_trace(go.Bar(
         x=percentile_names,
@@ -76,29 +76,30 @@ def create_percentile_visualization(current_metric, target_metric, gender):
         marker_color=colors,
         text=[f'{val:.1f}' for val in percentile_values],
         textposition='outside',
-        hovertemplate='<b>%{x}</b><br>%{y:.1f} kg/m²<extra></extra>'
+        hovertemplate='<b>%{x}</b><br>%{y:.1f} kg/m²<extra></extra>',
+        opacity=0.9
     ))
     
     # Add current value line
     fig.add_hline(
         y=current_metric,
         line_dash="dash",
-        line_color="#FF4B4B",
+        line_color="#FF6347",
         line_width=3,
         annotation_text=f"Current: {current_metric:.1f}",
         annotation_position="top right",
-        annotation_font=dict(color="#FF4B4B", size=14)
+        annotation_font=dict(color="#FF6347", size=14)
     )
     
     # Add target value line
     fig.add_hline(
         y=target_metric,
         line_dash="dash",
-        line_color="#00C853",
+        line_color="#32CD32",
         line_width=3,
         annotation_text=f"Target: {target_metric:.1f}",
         annotation_position="bottom right",
-        annotation_font=dict(color="#00C853", size=14)
+        annotation_font=dict(color="#32CD32", size=14)
     )
     
     # Update layout for nicer look
@@ -107,31 +108,31 @@ def create_percentile_visualization(current_metric, target_metric, gender):
             text=f'ALMI Percentile Goals for {gender}s',
             x=0.5,
             xanchor='center',
-            font=dict(size=18, color='#333333')
+            font=dict(size=20, color='#2C3E50')
         ),
         xaxis_title="Percentile",
         yaxis_title="ALMI (kg/m²)",
-        height=500,
-        font=dict(family="Helvetica, sans-serif", color="#333333"),
-        plot_bgcolor='rgba(255,255,255,1)',
-        paper_bgcolor='rgba(255,255,255,1)',
+        height=550,
+        font=dict(family="Roboto, sans-serif", color="#2C3E50"),
+        plot_bgcolor='#F0F4F8',
+        paper_bgcolor='#FFFFFF',
         showlegend=False,
         bargap=0.15,
         template='plotly_white',
-        margin=dict(l=40, r=40, t=60, b=40),
+        margin=dict(l=50, r=50, t=80, b=50),
         xaxis=dict(
             tickfont=dict(size=12),
-            titlefont=dict(size=14)
+            titlefont=dict(size=16)
         ),
         yaxis=dict(
             tickfont=dict(size=12),
-            titlefont=dict(size=14)
+            titlefont=dict(size=16),
+            gridcolor='#E0E0E0'
         )
     )
     
     # Update axes
-    fig.update_xaxes(tickangle=45, gridcolor='rgba(0,0,0,0.05)')
-    fig.update_yaxes(gridcolor='rgba(0,0,0,0.05)')
+    fig.update_xaxes(tickangle=45, gridcolor='#E0E0E0')
     
     return fig
 
@@ -154,13 +155,13 @@ def create_progress_timeline_chart(mass_needed_lbs, experience_level):
         name='Estimated Months',
         marker=dict(
             color=timeline_months,
-            colorscale='Blues',
-            line=dict(color='rgba(0, 150, 255, 0.8)', width=1.5),
-            opacity=0.9
+            colorscale='YlGnBu',
+            line=dict(color='#1E90FF', width=1.5),
+            opacity=0.85
         ),
         text=[f'{timeline_months:.1f} months' if timeline_months > 0 else 'Achieved'],
         textposition='inside',
-        insidetextfont=dict(color='white', size=14),
+        insidetextfont=dict(color='#FFFFFF', size=14),
         hovertemplate='<b>%{y}</b><br>Est. Time: %{x:.1f} months<extra></extra>'
     ))
     
@@ -170,26 +171,26 @@ def create_progress_timeline_chart(mass_needed_lbs, experience_level):
             text='Estimated Timeline to Goal',
             x=0.5,
             xanchor='center',
-            font=dict(size=18, color='#333333')
+            font=dict(size=20, color='#2C3E50')
         ),
         yaxis_title="Experience Level",
         xaxis_title="Months to Goal",
-        height=300,
-        font=dict(family="Helvetica, sans-serif", color="#333333"),
-        plot_bgcolor='rgba(255,255,255,1)',
-        paper_bgcolor='rgba(255,255,255,1)',
+        height=350,
+        font=dict(family="Roboto, sans-serif", color="#2C3E50"),
+        plot_bgcolor='#F0F4F8',
+        paper_bgcolor='#FFFFFF',
         showlegend=False,
         bargap=0.2,
         template='plotly_white',
-        margin=dict(l=40, r=40, t=60, b=40),
+        margin=dict(l=50, r=50, t=60, b=50),
         xaxis=dict(
             tickfont=dict(size=12),
-            titlefont=dict(size=14),
-            gridcolor='rgba(0,0,0,0.05)'
+            titlefont=dict(size=16),
+            gridcolor='#E0E0E0'
         ),
         yaxis=dict(
             tickfont=dict(size=12),
-            titlefont=dict(size=14)
+            titlefont=dict(size=16)
         )
     )
     
@@ -210,57 +211,65 @@ def main():
     st.markdown("""
         <style>
         .stApp {
-            background-color: #ffffff;
+            background-color: #FFFFFF;
         }
         .sidebar .sidebar-content {
-            background-color: #f8f9fa;
+            background-color: #F8F9FA;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
         .stNumberInput > div > div > input {
-            background-color: #ffffff;
-            border: 1px solid #dee2e6;
+            background-color: #FFFFFF;
+            border: 1px solid #DEE2E6;
             border-radius: 4px;
             padding: 8px;
+            font-family: Roboto, sans-serif;
         }
         .stSelectbox > div > div > div {
-            background-color: #ffffff;
-            border: 1px solid #dee2e6;
+            background-color: #FFFFFF;
+            border: 1px solid #DEE2E6;
             border-radius: 4px;
             padding: 8px;
+            font-family: Roboto, sans-serif;
         }
         .stRadio > div > label > div {
-            background-color: #ffffff;
-            border: 1px solid #dee2e6;
+            background-color: #FFFFFF;
+            border: 1px solid #DEE2E6;
             border-radius: 4px;
             padding: 8px;
+            font-family: Roboto, sans-serif;
         }
-        h1, h2, h3 {
-            color: #2c3e50;
+        h1, h2, h3, h4, h5, h6 {
+            color: #2C3E50;
+            font-family: Roboto, sans-serif;
         }
         .stDataFrame {
-            border: 1px solid #dee2e6;
+            border: 1px solid #DEE2E6;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .stAlert {
             border-radius: 4px;
         }
         </style>
     """, unsafe_allow_html=True)
     
     st.sidebar.title("Input Parameters")
-    unit_system = st.sidebar.radio("Units:", ["English", "Metric"], index=0)  # Default English for lbs
-    gender = st.sidebar.selectbox("Gender:", ["Male", "Female"])
+    unit_system = st.sidebar.radio("Units:", ["English", "Metric"], index=0, key="unit_system")  # Default English for lbs
+    gender = st.sidebar.selectbox("Gender:", ["Male", "Female"], key="gender")
     if unit_system == "Metric":
-        height_cm = st.sidebar.number_input("Height (cm):", min_value=100.0, max_value=250.0, value=170.0, step=0.5)
+        height_cm = st.sidebar.number_input("Height (cm):", min_value=100.0, max_value=250.0, value=170.0, step=0.5, key="height_cm")
         height_m = height_cm / 100
     else:
-        height_in = st.sidebar.number_input("Height (in):", min_value=48.0, max_value=96.0, value=68.0, step=0.5)
+        height_in = st.sidebar.number_input("Height (in):", min_value=48.0, max_value=96.0, value=68.0, step=0.5, key="height_in")
         height_m = inches_to_m(height_in)
-    current_almi = st.sidebar.number_input("Current ALMI (kg/m²):", min_value=3.0, max_value=15.0, value=7.0, step=0.1)
-    experience_level = st.sidebar.selectbox("Training Experience:", ["Beginner", "Intermediate", "Advanced"])
+    current_almi = st.sidebar.number_input("Current ALMI (kg/m²):", min_value=3.0, max_value=15.0, value=7.0, step=0.1, key="current_almi")
+    experience_level = st.sidebar.selectbox("Training Experience:", ["Beginner", "Intermediate", "Advanced"], key="experience_level")
     
     percentiles = get_percentile_targets(gender)
     suggested_almi = find_next_percentile(current_almi, percentiles)
-    target_almi = st.sidebar.number_input("Target ALMI (kg/m²):", min_value=3.0, max_value=15.0, value=suggested_almi, step=0.1)
+    target_almi = st.sidebar.number_input("Target ALMI (kg/m²):", min_value=3.0, max_value=15.0, value=suggested_almi, step=0.1, key="target_almi")
     
     st.title("DEXA ALMI Goal Calculator")
     st.write("Analyze your ALMI from DEXA scans, set goals, and get realistic timelines. Disclaimer: Consult a healthcare provider for personalized advice.")

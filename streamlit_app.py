@@ -396,19 +396,23 @@ def create_progress_timeline_chart(mass_needed_lbs, experience_level):
     
     fig = go.Figure()
     
-    # Horizontal bar for nicer look
+    # Horizontal bar with gloss (gradient)
     fig.add_trace(go.Bar(
         y=[experience_level],
         x=[timeline_months],
         orientation='h',
         name='Estimated Months',
-        marker_color=px.colors.qualitative.Pastel[0],
+        marker=dict(
+            color='rgba(0, 200, 255, 0.8)',
+            line=dict(color='rgba(0, 150, 255, 1)', width=2),
+            colorscale='Blues'  # Gradient for gloss
+        ),
         text=[f'{timeline_months:.1f} months' if timeline_months > 0 else 'Achieved'],
         textposition='auto',
         hovertemplate='<b>%{y}</b><br>Est. Time: %{x:.1f} months<extra></extra>'
     ))
     
-    # Update layout
+    # Update layout for modern look
     fig.update_layout(
         title=dict(
             text='Estimated Timeline to Goal',
@@ -420,12 +424,13 @@ def create_progress_timeline_chart(mass_needed_lbs, experience_level):
         xaxis_title="Months to Goal",
         height=300,
         font=dict(family="Arial, sans-serif"),
-        plot_bgcolor='white',
+        plot_bgcolor='rgba(240,240,240,0.5)',
         paper_bgcolor='white',
-        showlegend=False
+        showlegend=False,
+        bargap=0.2
     )
     
-    fig.update_xaxes(gridcolor='rgba(0,0,0,0.1)')
+    fig.update_xaxes(gridcolor='white')
     
     return fig, timeline_months
 
@@ -573,13 +578,21 @@ def generate_dexa_report_html(patient_data, scan_data, unit_system):
     
     return formatted_html
 
+def find_next_percentile(current_almi, percentiles):
+    """Find the next reasonable percentile cut point"""
+    sorted_percentiles = sorted(percentiles.items(), key=lambda x: x[1])
+    for perc, value in sorted_percentiles:
+        if current_almi < value:
+            return value
+    return max(percentiles.values())  # If above all, suggest the highest
+
 def main():
     st.title("Advanced Body Composition & Recomposition Calculator")
     st.write("Calculate lean mass gains with limb-specific inputs, visual analysis, and DEXA-style reports. Disclaimer: Consult a healthcare provider for personalized advice.")
     
     # Quick DEXA ALMI Calculator
     st.subheader("Quick DEXA ALMI Goal Calculator")
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
     with col1:
         unit_system = st.radio("Units:", ["English", "Metric"], index=0, key="quick_units")  # Default English for lbs
     with col2:
@@ -595,6 +608,10 @@ def main():
         current_almi = st.number_input("Current ALMI (kg/m²):", min_value=3.0, max_value=15.0, value=7.0, step=0.1, key="quick_almi")
     with col5:
         experience_level = st.selectbox("Training Experience:", ["Beginner", "Intermediate", "Advanced"], key="quick_experience")
+    with col6:
+        percentiles = get_percentile_targets(gender, "ALMI")
+        suggested_almi = find_next_percentile(current_almi, percentiles)
+        target_almi = st.number_input("Target ALMI (kg/m²):", min_value=3.0, max_value=15.0, value=suggested_almi, step=0.1, key="quick_target_almi")
     
     if current_almi:
         percentiles = get_percentile_targets(gender, "ALMI")
@@ -606,9 +623,9 @@ def main():
         fig_timeline_short = None
         fig_timeline_long = None
         
-        for perc, target_almi in percentiles.items():
-            target_alm_kg = calculate_alm_from_almi(target_almi, height_m)
-            mass_needed_kg = max(0, target_alm_kg - current_alm_kg)
+        for perc, percentile_almi in percentiles.items():
+            percentile_alm_kg = calculate_alm_from_almi(percentile_almi, height_m)
+            mass_needed_kg = max(0, percentile_alm_kg - current_alm_kg)
             mass_needed_lbs = kg_to_lbs(mass_needed_kg)
             
             fig_timeline, months = create_progress_timeline_chart(mass_needed_lbs, experience_level)
@@ -627,7 +644,7 @@ def main():
             
             results_data.append({
                 "Percentile": perc,
-                "Target ALMI": f"{target_almi:.1f} kg/m²",
+                "Target ALMI": f"{percentile_almi:.1f} kg/m²",
                 "Lean Mass Needed (lbs)": mass_str,
                 "Est. Time (months)": months_str
             })
@@ -635,12 +652,25 @@ def main():
         results_df = pd.DataFrame(results_data)
         st.dataframe(results_df, use_container_width=True)
         
+        # Custom target calculation
+        target_alm_kg = calculate_alm_from_almi(target_almi, height_m)
+        mass_needed_kg = max(0, target_alm_kg - current_alm_kg)
+        mass_needed_lbs = kg_to_lbs(mass_needed_kg)
+        fig_custom, months_custom = create_progress_timeline_chart(mass_needed_lbs, experience_level)
+        
+        if mass_needed_lbs <= 0:
+            st.success("Target Achieved!")
+        else:
+            st.write(f"Target Lean Mass Needed: {mass_needed_lbs:.1f} lbs")
+            st.write(f"Estimated Time to Target: {months_custom:.1f} months")
+            st.plotly_chart(fig_custom, use_container_width=True)
+        
         # Display percentile chart
-        fig_percentile = create_percentile_visualization(current_almi, short_term_target, gender, "ALMI")
+        fig_percentile = create_percentile_visualization(current_almi, target_almi, gender, "ALMI")
         st.plotly_chart(fig_percentile, use_container_width=True)
         
-        # Display timelines
-        st.subheader("Timelines")
+        # Display timelines for short and long term
+        st.subheader("Percentile Timelines")
         col_t1, col_t2 = st.columns(2)
         with col_t1:
             st.write("Short-term Timeline (75th percentile)")
@@ -652,22 +682,6 @@ def main():
                 st.plotly_chart(fig_timeline_long, use_container_width=True)
         
         st.caption("Note: Gain rates are approximate (Beginner: 1.5 lbs/month ALM, Intermediate: 0.75, Advanced: 0.375). Adjust for age/diet/training. ALMI declines ~1% per decade after 30; consider age in goals.")
-    
-    # Custom Goal
-    st.subheader("Custom ALMI Goal")
-    custom_almi = st.number_input("Custom Target ALMI (kg/m²):", min_value=3.0, max_value=15.0, value=9.0, step=0.1, key="custom_almi")
-    if custom_almi:
-        target_alm_kg = calculate_alm_from_almi(custom_almi, height_m)
-        mass_needed_kg = max(0, target_alm_kg - current_alm_kg)
-        mass_needed_lbs = kg_to_lbs(mass_needed_kg)
-        fig_custom, months_custom = create_progress_timeline_chart(mass_needed_lbs, experience_level)
-        
-        if mass_needed_lbs <= 0:
-            st.success("Goal Achieved!")
-        else:
-            st.write(f"Lean Mass Needed: {mass_needed_lbs:.1f} lbs")
-            st.write(f"Estimated Time: {months_custom:.1f} months")
-            st.plotly_chart(fig_custom, use_container_width=True)
     
     # Rest of the app (existing features)
     st.subheader("Advanced Analysis")
@@ -778,12 +792,281 @@ def main():
             fig = create_recomp_visualization(recomp, recomp_unit_system)
             st.plotly_chart(fig, use_container_width=True)
     
-    # Reference ranges at bottom
-    st.subheader("Reference Information")
-    if gender == "Male":
-        st.caption("Male ALMI reference: Normal ≥ 7.0 kg/m², Low < 7.0 kg/m²")
-    else:
-        st.caption("Female ALMI reference: Normal ≥ 5.5 kg/m², Low < 5.5 kg/m²")
+    elif input_method == "Limb-Specific Analysis":
+        # Unit system
+        limb_unit_system = st.radio("Units:", ["Metric", "English"], horizontal=True, key="limb_units")
+        
+        # Basic inputs
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if limb_unit_system == "Metric":
+                limb_height_cm = st.number_input("Height (cm):", min_value=100.0, max_value=250.0, 
+                                           value=170.0, step=0.5, key="limb_height_cm")
+                limb_height_m = limb_height_cm / 100
+                height_display = f"{limb_height_cm:.1f} cm"
+            else:
+                limb_height_in = st.number_input("Height (inches):", min_value=48.0, max_value=96.0, 
+                                           value=68.0, step=0.5, key="limb_height_in")
+                limb_height_m = inches_to_m(limb_height_in)
+                height_display = f"{limb_height_in:.1f} in"
+        
+        with col2:
+            limb_gender = st.selectbox("Gender:", ["Male", "Female"], key="limb_gender")
+        
+        with col3:
+            calc_type = st.radio("Calculate:", ["ALMI", "FFMI"], key="limb_calc_type")
+        
+        # Input method selection
+        st.subheader("Current Body Composition Input")
+        
+        limb_input_type = st.radio("Input method:", 
+                             ["Direct ALMI/FFMI", "Individual Limb Masses", "From Weight & Body Fat"], key="limb_input_type")
+        
+        current_metric = None
+        limb_data = None
+        scan_data = {}
+        
+        if limb_input_type == "Direct ALMI/FFMI":
+            if calc_type == "ALMI":
+                current_metric = st.number_input(f"Current ALMI (kg/m²):", 
+                                               min_value=3.0, max_value=15.0, 
+                                               value=6.5, step=0.1, key="limb_direct_almi")
+                # Estimate limb masses for visualization
+                total_alm = calculate_alm_from_almi(current_metric, limb_height_m)
+                limb_data = {
+                    'left_arm': total_alm * 0.23,   # Typical proportions
+                    'right_arm': total_alm * 0.25,
+                    'left_leg': total_alm * 0.25,
+                    'right_leg': total_alm * 0.27
+                }
+            else:
+                current_metric = st.number_input(f"Current FFMI (kg/m²):", 
+                                               min_value=10.0, max_value=30.0, 
+                                               value=18.0, step=0.1, key="limb_direct_ffmi")
+        
+        elif limb_input_type == "Individual Limb Masses":
+            st.write("**Enter lean mass for each limb:**")
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                if limb_unit_system == "Metric":
+                    left_arm = st.number_input("Left Arm (kg):", min_value=1.0, max_value=15.0, value=3.2, step=0.1, key="limb_left_arm_kg")
+                else:
+                    left_arm_lbs = st.number_input("Left Arm (lbs):", min_value=2.2, max_value=33.0, value=7.0, step=0.2, key="limb_left_arm_lbs")
+                    left_arm = lbs_to_kg(left_arm_lbs)
+            
+            with col2:
+                if limb_unit_system == "Metric":
+                    right_arm = st.number_input("Right Arm (kg):", min_value=1.0, max_value=15.0, value=3.4, step=0.1, key="limb_right_arm_kg")
+                else:
+                    right_arm_lbs = st.number_input("Right Arm (lbs):", min_value=2.2, max_value=33.0, value=7.5, step=0.2, key="limb_right_arm_lbs")
+                    right_arm = lbs_to_kg(right_arm_lbs)
+            
+            with col3:
+                if limb_unit_system == "Metric":
+                    left_leg = st.number_input("Left Leg (kg):", min_value=3.0, max_value=25.0, value=8.2, step=0.1, key="limb_left_leg_kg")
+                else:
+                    left_leg_lbs = st.number_input("Left Leg (lbs):", min_value=6.6, max_value=55.0, value=18.0, step=0.2, key="limb_left_leg_lbs")
+                    left_leg = lbs_to_kg(left_leg_lbs)
+            
+            with col4:
+                if limb_unit_system == "Metric":
+                    right_leg = st.number_input("Right Leg (kg):", min_value=3.0, max_value=25.0, value=8.5, step=0.1, key="limb_right_leg_kg")
+                else:
+                    right_leg_lbs = st.number_input("Right Leg (lbs):", min_value=6.6, max_value=55.0, value=18.7, step=0.2, key="limb_right_leg_lbs")
+                    right_leg = lbs_to_kg(right_leg_lbs)
+            
+            # Calculate total ALM and ALMI
+            total_alm = calculate_alm_from_limbs(left_arm, right_arm, left_leg, right_leg)
+            current_metric = calculate_almi_from_alm(total_alm, limb_height_m)
+            
+            limb_data = {
+                'left_arm': left_arm,
+                'right_arm': right_arm,
+                'left_leg': left_leg,
+                'right_leg': right_leg
+            }
+            
+            st.info(f"Calculated ALMI: {current_metric:.2f} kg/m² (Total ALM: {total_alm:.1f} kg)")
+        
+        elif limb_input_type == "From Weight & Body Fat":
+            col1, col2 = st.columns(2)
+            with col1:
+                if limb_unit_system == "Metric":
+                    weight_kg = st.number_input("Weight (kg):", min_value=30.0, max_value=200.0, value=70.0, key="limb_weight_kg")
+                else:
+                    weight_lbs = st.number_input("Weight (lbs):", min_value=66.0, max_value=440.0, value=154.0, key="limb_weight_lbs")
+                    weight_kg = lbs_to_kg(weight_lbs)
+            with col2:
+                body_fat_pct = st.number_input("Body Fat (%):", min_value=5.0, max_value=40.0, value=15.0, key="limb_bf_pct")
+            
+            if calc_type == "ALMI":
+                ffm = weight_kg * (1 - body_fat_pct / 100)
+                estimated_alm = ffm * 0.75  # ALM is ~75% of FFM
+                current_metric = calculate_almi_from_alm(estimated_alm, limb_height_m)
+                
+                # Estimate limb distribution
+                limb_data = {
+                    'left_arm': estimated_alm * 0.23,
+                    'right_arm': estimated_alm * 0.25,
+                    'left_leg': estimated_alm * 0.25,
+                    'right_leg': estimated_alm * 0.27
+                }
+                st.info(f"Estimated ALMI: {current_metric:.2f} kg/m² (ALM ≈ 75% of FFM)")
+            else:
+                current_metric = calculate_ffmi_from_weight_bf(weight_kg, body_fat_pct, limb_height_m)
+                st.info(f"Calculated FFMI: {current_metric:.2f} kg/m²")
+            
+            # Store data for DEXA report
+            scan_data.update({
+                'weight': weight_kg,
+                'body_fat': body_fat_pct,
+                'alm': estimated_alm if calc_type == "ALMI" else ffm,
+                'left_arm': limb_data['left_arm'] if calc_type == "ALMI" else ffm * 0.23,
+                'right_arm': limb_data['right_arm'] if calc_type == "ALMI" else ffm * 0.25,
+                'left_leg': limb_data['left_leg'] if calc_type == "ALMI" else ffm * 0.25,
+                'right_leg': limb_data['right_leg'] if calc_type == "ALMI" else ffm * 0.27
+            })
+        
+        # Target selection
+        st.subheader("Target Analysis")
+        
+        target_method = st.radio("Analysis type:", ["Specific Target", "Percentile Goals", "Visual Analysis"], key="limb_target_method")
+        
+        if target_method == "Specific Target":
+            if calc_type == "ALMI":
+                target_metric = st.number_input(f"Target ALMI (kg/m²):", 
+                                              min_value=3.0, max_value=15.0, 
+                                              value=7.5, step=0.1, key="limb_specific_almi")
+            else:
+                target_metric = st.number_input(f"Target FFMI (kg/m²):", 
+                                              min_value=10.0, max_value=30.0, 
+                                              value=20.0, step=0.1, key="limb_specific_ffmi")
+            
+            # Calculate mass needed
+            if current_metric:
+                if calc_type == "ALMI":
+                    current_mass = calculate_alm_from_almi(current_metric, limb_height_m)
+                    target_mass = calculate_alm_from_almi(target_metric, limb_height_m)
+                else:
+                    current_mass = calculate_ffm_from_ffmi(current_metric, limb_height_m)
+                    target_mass = calculate_ffm_from_ffmi(target_metric, limb_height_m)
+                
+                mass_needed = target_mass - current_mass
+                
+                if mass_needed > 0:
+                    if limb_unit_system == "English":
+                        st.success(f"**To reach {target_metric:.1f} kg/m² {calc_type}: Gain {kg_to_lbs(mass_needed):.1f} lbs lean mass**")
+                    else:
+                        st.success(f"**To reach {target_metric:.1f} kg/m² {calc_type}: Gain {mass_needed:.1f} kg lean mass**")
+                else:
+                    st.success("**Target already reached!**")
+        
+        elif target_method == "Percentile Goals":
+            percentiles = get_percentile_targets(limb_gender, calc_type)
+            
+            if current_metric:
+                results_data = []
+                
+                for percentile, target_value in percentiles.items():
+                    if calc_type == "ALMI":
+                        current_mass = calculate_alm_from_almi(current_metric, limb_height_m)
+                        target_mass = calculate_alm_from_almi(target_value, limb_height_m)
+                    else:
+                        current_mass = calculate_ffm_from_ffmi(current_metric, limb_height_m)
+                        target_mass = calculate_ffm_from_ffmi(target_value, limb_height_m)
+                    
+                    mass_needed = max(0, target_mass - current_mass)
+                    
+                    if mass_needed == 0:
+                        status = "✅ Achieved"
+                    else:
+                        if limb_unit_system == "English":
+                            status = f"Need +{kg_to_lbs(mass_needed):.1f} lbs"
+                        else:
+                            status = f"Need +{mass_needed:.1f} kg"
+                    
+                    results_data.append({
+                        "Percentile": percentile,
+                        f"Target {calc_type}": f"{target_value:.1f} kg/m²",
+                        "Lean Mass Needed": status
+                    })
+                
+                results_df = pd.DataFrame(results_data)
+                st.dataframe(results_df, use_container_width=True)
+                
+                # Create percentile visualization
+                if st.button("Generate Percentile Chart", key="limb_percentile_button"):
+                    target_value = percentiles["75th percentile"]  # Default to 75th percentile
+                    fig = create_percentile_visualization(current_metric, target_value, limb_gender, calc_type)
+                    st.plotly_chart(fig, use_container_width=True)
+        
+        elif target_method == "Visual Analysis":
+            if limb_data and st.button("Generate Limb Analysis", key="limb_generate_button"):
+                fig = create_limb_composition_chart(
+                    limb_data['left_arm'], limb_data['right_arm'], 
+                    limb_data['left_leg'], limb_data['right_leg'], 
+                    limb_unit_system
+                )
+                st.plotly_chart(fig, use_container_width=True)
+        
+        # DEXA Report Generation
+        st.subheader("Generate DEXA-Style Report")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            patient_name = st.text_input("Patient Name:", value="John Doe", key="limb_patient_name")
+            patient_dob = st.date_input("Date of Birth:", value=datetime(1990, 1, 1), key="limb_dob")
+        
+        with col2:
+            if st.button("Generate DEXA Report", key="limb_report_button"):
+                if current_metric and limb_data:
+                    # Prepare patient data
+                    patient_data = {
+                        'name': patient_name,
+                        'dob': patient_dob.strftime("%m/%d/%Y"),
+                        'height_m': limb_height_m,
+                        'height_cm': limb_height_cm if limb_unit_system == "Metric" else limb_height_in * 2.54,
+                        'height_in': limb_height_in if limb_unit_system == "English" else limb_height_cm / 2.54
+                    }
+                    
+                    # Prepare scan data
+                    if not scan_data:  # If not from weight/BF input
+                        scan_data = {
+                            'weight': 70.0,  # Default values
+                            'body_fat': 15.0,
+                            'alm': sum(limb_data.values()) if limb_data else calculate_alm_from_almi(current_metric, limb_height_m),
+                            'left_arm': limb_data['left_arm'],
+                            'right_arm': limb_data['right_arm'],
+                            'left_leg': limb_data['left_leg'],
+                            'right_leg': limb_data['right_leg']
+                        }
+                    
+                    # Generate HTML report
+                    html_report = generate_dexa_report_html(patient_data, scan_data, limb_unit_system)
+                    
+                    # Provide download link
+                    b64 = base64.b64encode(html_report.encode()).decode()
+                    href = f'<a href="data:text/html;base64,{b64}" download="dexa_report_{patient_name.replace(" ", "_")}.html">Download DEXA Report</a>'
+                    st.markdown(href, unsafe_allow_html=True)
+                    
+                    st.success("DEXA report generated! Click the link above to download.")
+                else:
+                    st.error("Please complete the body composition analysis first.")
+        
+        # Reference ranges
+        st.subheader("Reference Information")
+        if calc_type == "ALMI":
+            if limb_gender == "Male":
+                st.caption("Male ALMI reference: Normal ≥ 7.0 kg/m², Low < 7.0 kg/m²")
+            else:
+                st.caption("Female ALMI reference: Normal ≥ 5.5 kg/m², Low < 5.5 kg/m²")
+        else:
+            if limb_gender == "Male":
+                st.caption("Male FFMI reference: Average 16.7-19.8 kg/m², Athletic >20 kg/m², Elite 22-25 kg/m²")
+            else:
+                st.caption("Female FFMI reference: Average 14.6-16.8 kg/m², Athletic >17 kg/m²")
 
 if __name__ == "__main__":
     main()

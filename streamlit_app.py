@@ -587,34 +587,29 @@ def find_next_percentile(current_almi, percentiles):
     return max(percentiles.values())  # If above all, suggest the highest
 
 def main():
+    st.sidebar.title("Input Parameters")
+    unit_system = st.sidebar.radio("Units:", ["English", "Metric"], index=0)  # Default English for lbs
+    gender = st.sidebar.selectbox("Gender:", ["Male", "Female"])
+    if unit_system == "Metric":
+        height_cm = st.sidebar.number_input("Height (cm):", min_value=100.0, max_value=250.0, value=170.0, step=0.5)
+        height_m = height_cm / 100
+    else:
+        height_in = st.sidebar.number_input("Height (in):", min_value=48.0, max_value=96.0, value=68.0, step=0.5)
+        height_m = inches_to_m(height_in)
+    current_almi = st.sidebar.number_input("Current ALMI (kg/m²):", min_value=3.0, max_value=15.0, value=7.0, step=0.1)
+    experience_level = st.sidebar.selectbox("Training Experience:", ["Beginner", "Intermediate", "Advanced"])
+    
+    percentiles = get_percentile_targets(gender, "ALMI")
+    suggested_almi = find_next_percentile(current_almi, percentiles)
+    target_almi = st.sidebar.number_input("Target ALMI (kg/m²):", min_value=3.0, max_value=15.0, value=suggested_almi, step=0.1)
+    
     st.title("Advanced Body Composition & Recomposition Calculator")
     st.write("Calculate lean mass gains with limb-specific inputs, visual analysis, and DEXA-style reports. Disclaimer: Consult a healthcare provider for personalized advice.")
     
-    # Quick DEXA ALMI Calculator
+    # Quick DEXA ALMI Calculator (results in main area)
     st.subheader("Quick DEXA ALMI Goal Calculator")
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
-    with col1:
-        unit_system = st.radio("Units:", ["English", "Metric"], index=0, key="quick_units")  # Default English for lbs
-    with col2:
-        gender = st.selectbox("Gender:", ["Male", "Female"], key="quick_gender")
-    with col3:
-        if unit_system == "Metric":
-            height_cm = st.number_input("Height (cm):", min_value=100.0, max_value=250.0, value=170.0, step=0.5, key="quick_height_cm")
-            height_m = height_cm / 100
-        else:
-            height_in = st.number_input("Height (in):", min_value=48.0, max_value=96.0, value=68.0, step=0.5, key="quick_height_in")
-            height_m = inches_to_m(height_in)
-    with col4:
-        current_almi = st.number_input("Current ALMI (kg/m²):", min_value=3.0, max_value=15.0, value=7.0, step=0.1, key="quick_almi")
-    with col5:
-        experience_level = st.selectbox("Training Experience:", ["Beginner", "Intermediate", "Advanced"], key="quick_experience")
-    with col6:
-        percentiles = get_percentile_targets(gender, "ALMI")
-        suggested_almi = find_next_percentile(current_almi, percentiles)
-        target_almi = st.number_input("Target ALMI (kg/m²):", min_value=3.0, max_value=15.0, value=suggested_almi, step=0.1, key="quick_target_almi")
     
     if current_almi:
-        percentiles = get_percentile_targets(gender, "ALMI")
         current_alm_kg = calculate_alm_from_almi(current_almi, height_m)
         results_data = []
         

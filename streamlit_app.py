@@ -125,12 +125,12 @@ def create_percentile_visualization(current_metric, target_metric, gender):
         margin=dict(l=60, r=60, t=80, b=60),
         xaxis=dict(
             tickfont=dict(size=12),
-            titlefont=dict(size=16),
+            title_font=dict(size=16),
             gridcolor='rgba(0,0,0,0.05)'
         ),
         yaxis=dict(
             tickfont=dict(size=12),
-            titlefont=dict(size=16),
+            title_font=dict(size=16),
             gridcolor='rgba(0,0,0,0.05)'
         )
     )
@@ -154,7 +154,7 @@ def create_progress_timeline_chart(mass_needed_lbs, experience_level):
         orientation='h',
         name='Estimated Months',
         marker=dict(
-            color='#1E90FF' if timeline_months > 0 else '#4CAF50',  # Blue for progress, green for achieved
+            color='#1E90FF' if timeline_months > 0 else '#4CAF50',
             line=dict(color='#1E90FF', width=2),
             opacity=0.9
         ),
@@ -184,12 +184,12 @@ def create_progress_timeline_chart(mass_needed_lbs, experience_level):
         margin=dict(l=60, r=60, t=60, b=60),
         xaxis=dict(
             tickfont=dict(size=12),
-            titlefont=dict(size=16),
+            title_font=dict(size=16),
             gridcolor='rgba(0,0,0,0.05)'
         ),
         yaxis=dict(
             tickfont=dict(size=12),
-            titlefont=dict(size=16)
+            title_font=dict(size=16),
         )
     )
     

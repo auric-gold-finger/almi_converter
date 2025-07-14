@@ -309,7 +309,7 @@ def create_limb_composition_chart(left_arm, right_arm, left_leg, right_leg, unit
         font=dict(family="Arial, sans-serif"),
         plot_bgcolor='white',
         paper_bgcolor='white'
-    ))
+    )
     
     # Update y-axis
     fig.update_yaxes(title_text=f"Lean Mass ({weight_unit})", row=1, col=2)

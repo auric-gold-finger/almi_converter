@@ -28,6 +28,10 @@ def calculate_alm_from_almi(almi, height_m):
     """Calculate appendicular lean mass from ALMI"""
     return almi * (height_m ** 2)
 
+def calculate_almi_from_alm(alm_kg, height_m):
+    """Calculate ALMI from appendicular lean mass"""
+    return alm_kg / (height_m ** 2)
+
 def get_percentile_targets(gender):
     """Get percentile-based targets for ALMI"""
     if gender == "Male":
@@ -85,12 +89,91 @@ def estimate_timeline_range(mass_needed_lbs, gender, experience_level):
     # Cap at reasonable maximum
     max_months = min(max_months, 120)  # 10 years max
     
-    # Debug logging - remove this in production
-    # print(f"Mass needed: {mass_needed_lbs} lbs")
-    # print(f"Annual range: {min_annual}-{max_annual} lbs/year") 
-    # print(f"Timeline: {min_months:.1f}-{max_months:.1f} months")
-    
     return min_months, max_months, f"{min_months:.1f} - {max_months:.1f}"
+
+def create_asymmetry_chart(limb_data, unit_system):
+    """Create visualization for limb asymmetries"""
+    if not any(limb_data.values()):
+        return None
+    
+    # Filter out None/zero values
+    valid_limbs = {k: v for k, v in limb_data.items() if v and v > 0}
+    
+    if len(valid_limbs) < 2:
+        return None
+    
+    limb_names = list(valid_limbs.keys())
+    limb_values = list(valid_limbs.values())
+    
+    # Calculate asymmetries (difference from mean)
+    mean_value = np.mean(limb_values)
+    asymmetries = [(v - mean_value) / mean_value * 100 for v in limb_values]
+    
+    # Create bar chart
+    fig = go.Figure()
+    
+    # Color bars based on asymmetry magnitude
+    colors = ['#FF6B6B' if abs(asym) > 10 else '#FFA500' if abs(asym) > 5 else '#4CAF50' 
+              for asym in asymmetries]
+    
+    unit_label = "kg" if unit_system == "Metric" else "lbs"
+    
+    fig.add_trace(go.Bar(
+        x=limb_names,
+        y=limb_values,
+        name='Lean Mass',
+        marker=dict(
+            color=colors,
+            opacity=0.85,
+            line=dict(width=1, color='rgba(0,0,0,0.1)')
+        ),
+        text=[f'{val:.1f} {unit_label}<br>({asym:+.1f}%)' for val, asym in zip(limb_values, asymmetries)],
+        textposition='outside',
+        hovertemplate='<b>%{x}</b><br>%{y:.1f} ' + unit_label + '<br>Asymmetry: %{customdata:+.1f}%<extra></extra>',
+        customdata=asymmetries
+    ))
+    
+    # Add mean line
+    fig.add_hline(
+        y=mean_value,
+        line_dash="dash",
+        line_color="#1E90FF",
+        line_width=2,
+        annotation_text=f"Mean: {mean_value:.1f} {unit_label}",
+        annotation_position="top right",
+        annotation_font=dict(color="#1E90FF", size=12)
+    )
+    
+    fig.update_layout(
+        title=dict(
+            text='Limb Lean Mass Asymmetry Analysis',
+            x=0.5,
+            xanchor='center',
+            font=dict(size=18, color='#2C3E50', family='Roboto')
+        ),
+        xaxis_title="Limb",
+        yaxis_title=f"Lean Mass ({unit_label})",
+        height=500,
+        font=dict(family="Roboto", color="#2C3E50"),
+        plot_bgcolor='rgba(245, 245, 245, 1)',
+        paper_bgcolor='rgba(255, 255, 255, 1)',
+        showlegend=False,
+        bargap=0.3,
+        template='plotly_white',
+        margin=dict(l=60, r=60, t=80, b=60),
+        xaxis=dict(
+            tickfont=dict(size=12),
+            title_font=dict(size=14),
+            gridcolor='rgba(0,0,0,0.05)'
+        ),
+        yaxis=dict(
+            tickfont=dict(size=12),
+            title_font=dict(size=14),
+            gridcolor='rgba(0,0,0,0.05)'
+        )
+    )
+    
+    return fig, asymmetries, mean_value
 
 def create_percentile_visualization(current_metric, target_metric, gender):
     """Create percentile goal visualization using Plotly"""
@@ -102,8 +185,11 @@ def create_percentile_visualization(current_metric, target_metric, gender):
     # Create bar chart
     fig = go.Figure()
     
-    # Add percentile bars with a modern color gradient
-    colors = px.colors.sequential.Tealgrn
+    # Add percentile bars with gender-appropriate colors
+    if gender == "Female":
+        colors = px.colors.sequential.Purples
+    else:
+        colors = px.colors.sequential.Tealgrn
     
     fig.add_trace(go.Bar(
         x=percentile_names,
@@ -197,6 +283,10 @@ def create_progress_timeline_chart(mass_needed_lbs, gender, experience_level):
             hovertemplate='<b>%{y}</b><br>Status: Achieved<extra></extra>'
         ))
     else:
+        # Choose colors based on gender
+        primary_color = '#9C27B0' if gender == "Female" else '#1E90FF'
+        secondary_color = '#E1BEE7' if gender == "Female" else '#87CEEB'
+        
         # Show range as stacked bars
         fig.add_trace(go.Bar(
             y=[experience_level],
@@ -204,7 +294,7 @@ def create_progress_timeline_chart(mass_needed_lbs, gender, experience_level):
             orientation='h',
             name='Minimum Timeline',
             marker=dict(
-                color='#1E90FF',
+                color=primary_color,
                 opacity=0.9
             ),
             text=[f'{min_months:.1f}'],
@@ -219,7 +309,7 @@ def create_progress_timeline_chart(mass_needed_lbs, gender, experience_level):
             orientation='h',
             name='Maximum Timeline',
             marker=dict(
-                color='#87CEEB',
+                color=secondary_color,
                 opacity=0.7
             ),
             text=[f'{max_months:.1f}'],
@@ -311,13 +401,13 @@ def main():
     # Input validation for height
     try:
         if unit_system == "Metric":
-            height_cm = st.sidebar.number_input("Height (cm):", min_value=100.0, max_value=250.0, value=170.0, step=0.5, key="height_cm")
+            height_cm = st.sidebar.number_input("Height (cm):", min_value=100.0, max_value=250.0, value=165.0 if gender == "Female" else 175.0, step=0.5, key="height_cm")
             if height_cm <= 0:
                 st.sidebar.error("Height must be positive.")
                 return
             height_m = height_cm / 100
         else:
-            height_in = st.sidebar.number_input("Height (in):", min_value=48.0, max_value=96.0, value=68.0, step=0.5, key="height_in")
+            height_in = st.sidebar.number_input("Height (in):", min_value=48.0, max_value=96.0, value=65.0 if gender == "Female" else 70.0, step=0.5, key="height_in")
             if height_in <= 0:
                 st.sidebar.error("Height must be positive.")
                 return
@@ -328,7 +418,8 @@ def main():
     
     # Input validation for ALMI
     try:
-        current_almi = st.sidebar.number_input("Current ALMI (kg/m²):", min_value=3.0, max_value=15.0, value=7.0, step=0.1, key="current_almi")
+        default_almi = 6.5 if gender == "Female" else 8.0
+        current_almi = st.sidebar.number_input("Current ALMI (kg/m²):", min_value=3.0, max_value=15.0, value=default_almi, step=0.1, key="current_almi")
         if current_almi <= 0:
             st.sidebar.error("Current ALMI must be positive.")
             return
@@ -359,9 +450,27 @@ def main():
     st.sidebar.markdown(f"**Expected Annual ALM Gain:**")
     st.sidebar.markdown(f"{min_gain} - {max_gain} lbs/year")
     
+    # Optional limb lean mass inputs
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**Optional: Individual Limb Analysis**")
+    enable_limb_analysis = st.sidebar.checkbox("Enable limb asymmetry analysis", key="enable_limb")
+    
+    limb_data = {}
+    if enable_limb_analysis:
+        unit_label = "kg" if unit_system == "Metric" else "lbs"
+        
+        st.sidebar.markdown(f"*Enter lean mass for each limb ({unit_label}):*")
+        limb_data = {
+            "Right Arm": st.sidebar.number_input(f"Right Arm ({unit_label}):", min_value=0.0, value=0.0, step=0.1, key="right_arm"),
+            "Left Arm": st.sidebar.number_input(f"Left Arm ({unit_label}):", min_value=0.0, value=0.0, step=0.1, key="left_arm"),
+            "Right Leg": st.sidebar.number_input(f"Right Leg ({unit_label}):", min_value=0.0, value=0.0, step=0.1, key="right_leg"),
+            "Left Leg": st.sidebar.number_input(f"Left Leg ({unit_label}):", min_value=0.0, value=0.0, step=0.1, key="left_leg")
+        }
+    
+    # Main content
     st.title("DEXA ALMI Goal Calculator")
     with st.container():
-        st.markdown("Analyze your ALMI from DEXA scans, set goals, and get realistic timelines based on research-backed gain rates. *Disclaimer: Consult a healthcare provider for personalized advice.*")
+        st.markdown("Analyze your ALMI from DEXA scans, set goals, and get realistic timelines based on research-backed gain rates. Now with limb asymmetry analysis! *Disclaimer: Consult a healthcare provider for personalized advice.*")
     
     try:
         current_alm_kg = calculate_alm_from_almi(current_almi, height_m)
@@ -402,9 +511,27 @@ def main():
             })
         
         results_df = pd.DataFrame(results_data)
-        with st.container():
+        
+        # Layout: Main results in columns
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
             st.subheader("Percentile Targets")
             st.dataframe(style_dataframe(results_df), use_container_width=True)
+        
+        with col2:
+            # Current stats summary
+            st.subheader("Current Stats")
+            current_alm_lbs = kg_to_lbs(current_alm_kg)
+            st.metric("Current ALMI", f"{current_almi:.1f} kg/m²")
+            st.metric("Current ALM", f"{current_alm_lbs:.1f} lbs")
+            
+            # Find current percentile
+            current_percentile = "Below 5th"
+            for perc, value in sorted(percentiles.items(), key=lambda x: x[1]):
+                if current_almi >= value:
+                    current_percentile = perc
+            st.metric("Current Percentile", current_percentile)
         
         # Custom target calculation
         target_alm_kg = calculate_alm_from_almi(target_almi, height_m)
@@ -428,6 +555,51 @@ def main():
                     st.metric("Estimated Timeline", timeline_display)
                 st.plotly_chart(fig_custom, use_container_width=True)
         
+        # Limb asymmetry analysis
+        if enable_limb_analysis and any(limb_data.values()):
+            st.subheader("Limb Asymmetry Analysis")
+            
+            asymmetry_result = create_asymmetry_chart(limb_data, unit_system)
+            if asymmetry_result:
+                fig_asymmetry, asymmetries, mean_value = asymmetry_result
+                
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.plotly_chart(fig_asymmetry, use_container_width=True)
+                
+                with col2:
+                    st.markdown("**Asymmetry Guidelines:**")
+                    st.markdown("🟢 **<5%**: Normal variation")
+                    st.markdown("🟡 **5-10%**: Moderate asymmetry")  
+                    st.markdown("🔴 **>10%**: Significant asymmetry")
+                    
+                    max_asymmetry = max(abs(a) for a in asymmetries)
+                    if max_asymmetry > 10:
+                        st.warning("⚠️ Significant asymmetry detected. Consider targeted training.")
+                    elif max_asymmetry > 5:
+                        st.info("ℹ️ Moderate asymmetry. Monitor and consider corrective exercises.")
+                    else:
+                        st.success("✅ Normal limb symmetry.")
+                
+                # Calculate total from limbs if all 4 are provided
+                valid_limbs = [v for v in limb_data.values() if v > 0]
+                if len(valid_limbs) == 4:
+                    total_limb_mass = sum(valid_limbs)
+                    unit_label = "kg" if unit_system == "Metric" else "lbs"
+                    
+                    # Convert to kg for ALMI calculation if needed
+                    if unit_system == "English":
+                        total_limb_mass_kg = lbs_to_kg(total_limb_mass)
+                    else:
+                        total_limb_mass_kg = total_limb_mass
+                    
+                    calculated_almi = calculate_almi_from_alm(total_limb_mass_kg, height_m)
+                    
+                    st.info(f"**Calculated from limbs:** Total ALM = {total_limb_mass:.1f} {unit_label}, ALMI = {calculated_almi:.1f} kg/m²")
+                    
+                    if abs(calculated_almi - current_almi) > 0.5:
+                        st.warning("⚠️ Significant difference between entered ALMI and calculated from limbs. Please verify your inputs.")
+        
         # Display percentile chart
         with st.container():
             st.subheader("ALMI Percentile Chart")
@@ -439,12 +611,12 @@ def main():
         col_t1, col_t2 = st.columns(2)
         with col_t1:
             with st.container():
-                st.markdown("**Short-term Timeline (75th percentile)**")
+                st.markdown("**Short-term Goal (75th percentile)**")
                 if fig_timeline_short:
                     st.plotly_chart(fig_timeline_short, use_container_width=True)
         with col_t2:
             with st.container():
-                st.markdown("**Long-term Timeline (95th percentile)**")
+                st.markdown("**Long-term Goal (95th percentile)**")
                 if fig_timeline_long:
                     st.plotly_chart(fig_timeline_long, use_container_width=True)
         
@@ -466,7 +638,7 @@ def main():
             gain_df = pd.DataFrame(gain_table_data)
             st.dataframe(style_dataframe(gain_df), use_container_width=True)
             
-            st.markdown("*Rates assume progressive overload, 0.75-1g protein/lb body weight, and slight caloric surplus. Males typically gain more due to higher testosterone; progress slows with experience. ALMI may decline ~1% per decade after 30.*")
+            st.markdown("*Rates assume progressive overload, 0.75-1g protein/lb body weight, and slight caloric surplus. Males typically gain more due to higher testosterone; progress slows with experience. ALMI may decline ~1% per decade after 30. Limb asymmetries >10% may indicate need for targeted training.*")
     
     except Exception as e:
         st.error(f"An error occurred: {str(e)}. Please check your inputs and try again.")

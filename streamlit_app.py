@@ -74,7 +74,9 @@ def estimate_timeline_range(mass_needed_lbs, gender, experience_level):
         return 0, 0, "No gains expected"
     
     # Calculate timeline in years, then convert to months
-    min_years = mass_needed_lbs / max_annual  # Faster timeline uses max gain rate
+    # Minimum time uses maximum gain rate (best case scenario)
+    min_years = mass_needed_lbs / max_annual  
+    # Maximum time uses minimum gain rate (conservative scenario)
     max_years = mass_needed_lbs / min_annual if min_annual > 0 else float('inf')
     
     min_months = min_years * 12
@@ -82,6 +84,11 @@ def estimate_timeline_range(mass_needed_lbs, gender, experience_level):
     
     # Cap at reasonable maximum
     max_months = min(max_months, 120)  # 10 years max
+    
+    # Debug logging - remove this in production
+    # print(f"Mass needed: {mass_needed_lbs} lbs")
+    # print(f"Annual range: {min_annual}-{max_annual} lbs/year") 
+    # print(f"Timeline: {min_months:.1f}-{max_months:.1f} months")
     
     return min_months, max_months, f"{min_months:.1f} - {max_months:.1f}"
 

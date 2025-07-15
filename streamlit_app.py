@@ -47,14 +47,43 @@ def get_percentile_targets(gender):
             "95th percentile": 8.8
         }
 
-def estimate_gain_rate(experience_level):
-    """Estimate monthly lean mass gain rate in lbs (for ALM, approximate)"""
-    rates = {
-        "Beginner": 1.5,
-        "Intermediate": 0.75,
-        "Advanced": 0.375
+def get_annual_alm_gain_range(gender, experience_level):
+    """Get annual ALM gain range in pounds based on gender and experience"""
+    gain_data = {
+        "Male": {
+            "Beginner (< 1 year)": (4, 9),
+            "Intermediate (1-2 years)": (2, 4),
+            "Experienced (2+ years)": (1, 2.5)
+        },
+        "Female": {
+            "Beginner (< 1 year)": (2, 5),
+            "Intermediate (1-2 years)": (1, 3),
+            "Experienced (2+ years)": (0.5, 2)
+        }
     }
-    return rates.get(experience_level, 0.75)  # Default to Intermediate if invalid
+    return gain_data.get(gender, {}).get(experience_level, (0, 0))
+
+def estimate_timeline_range(mass_needed_lbs, gender, experience_level):
+    """Estimate timeline range in months based on annual gain rates"""
+    min_annual, max_annual = get_annual_alm_gain_range(gender, experience_level)
+    
+    if mass_needed_lbs <= 0:
+        return 0, 0, "Achieved"
+    
+    if max_annual <= 0:
+        return 0, 0, "No gains expected"
+    
+    # Calculate timeline in years, then convert to months
+    min_years = mass_needed_lbs / max_annual  # Faster timeline uses max gain rate
+    max_years = mass_needed_lbs / min_annual if min_annual > 0 else float('inf')
+    
+    min_months = min_years * 12
+    max_months = max_years * 12 if max_years != float('inf') else 999
+    
+    # Cap at reasonable maximum
+    max_months = min(max_months, 120)  # 10 years max
+    
+    return min_months, max_months, f"{min_months:.1f} - {max_months:.1f}"
 
 def create_percentile_visualization(current_metric, target_metric, gender):
     """Create percentile goal visualization using Plotly"""
@@ -137,32 +166,60 @@ def create_percentile_visualization(current_metric, target_metric, gender):
     
     return fig
 
-def create_progress_timeline_chart(mass_needed_lbs, experience_level):
-    """Create timeline visualization for lean mass gain progress"""
-    monthly_rate = estimate_gain_rate(experience_level)
-    if mass_needed_lbs > 0 and monthly_rate > 0:
-        timeline_months = max(1, mass_needed_lbs / monthly_rate)
-    else:
-        timeline_months = 0
+def create_progress_timeline_chart(mass_needed_lbs, gender, experience_level):
+    """Create timeline visualization for lean mass gain progress with ranges"""
+    min_months, max_months, timeline_str = estimate_timeline_range(mass_needed_lbs, gender, experience_level)
     
     fig = go.Figure()
     
-    # Horizontal bar with improved color contrast
-    fig.add_trace(go.Bar(
-        y=[experience_level],
-        x=[timeline_months],
-        orientation='h',
-        name='Estimated Months',
-        marker=dict(
-            color='#1E90FF' if timeline_months > 0 else '#4CAF50',
-            line=dict(color='#1E90FF', width=2),
-            opacity=0.9
-        ),
-        text=[f'{timeline_months:.1f} months' if timeline_months > 0 else 'Achieved'],
-        textposition='inside',
-        insidetextfont=dict(color='#FFFFFF', size=14),
-        hovertemplate='<b>%{y}</b><br>Est. Time: %{x:.1f} months<extra></extra>'
-    ))
+    if mass_needed_lbs <= 0:
+        # Already achieved
+        fig.add_trace(go.Bar(
+            y=[experience_level],
+            x=[0],
+            orientation='h',
+            name='Achieved',
+            marker=dict(
+                color='#4CAF50',
+                line=dict(color='#4CAF50', width=2),
+                opacity=0.9
+            ),
+            text=['Achieved'],
+            textposition='inside',
+            insidetextfont=dict(color='#FFFFFF', size=14),
+            hovertemplate='<b>%{y}</b><br>Status: Achieved<extra></extra>'
+        ))
+    else:
+        # Show range as stacked bars
+        fig.add_trace(go.Bar(
+            y=[experience_level],
+            x=[min_months],
+            orientation='h',
+            name='Minimum Timeline',
+            marker=dict(
+                color='#1E90FF',
+                opacity=0.9
+            ),
+            text=[f'{min_months:.1f}'],
+            textposition='inside',
+            insidetextfont=dict(color='#FFFFFF', size=12),
+            hovertemplate='<b>%{y}</b><br>Minimum: %{x:.1f} months<extra></extra>'
+        ))
+        
+        fig.add_trace(go.Bar(
+            y=[experience_level],
+            x=[max_months - min_months],
+            orientation='h',
+            name='Maximum Timeline',
+            marker=dict(
+                color='#87CEEB',
+                opacity=0.7
+            ),
+            text=[f'{max_months:.1f}'],
+            textposition='inside',
+            insidetextfont=dict(color='#2C3E50', size=12),
+            hovertemplate='<b>%{y}</b><br>Maximum: %{x:.1f} additional months<extra></extra>'
+        ))
     
     # Update layout for modern, dimensional look
     fig.update_layout(
@@ -178,8 +235,9 @@ def create_progress_timeline_chart(mass_needed_lbs, experience_level):
         font=dict(family="Roboto", color="#2C3E50"),
         plot_bgcolor='rgba(245, 245, 245, 1)',
         paper_bgcolor='rgba(255, 255, 255, 1)',
-        showlegend=False,
+        showlegend=True,
         bargap=0.2,
+        barmode='stack',
         template='plotly_white',
         margin=dict(l=60, r=60, t=60, b=60),
         xaxis=dict(
@@ -193,7 +251,7 @@ def create_progress_timeline_chart(mass_needed_lbs, experience_level):
         )
     )
     
-    return fig, timeline_months
+    return fig, (min_months, max_months)
 
 def find_next_percentile(current_almi, percentiles):
     """Find the next reasonable percentile cut point"""
@@ -271,7 +329,9 @@ def main():
         st.sidebar.error("Invalid ALMI input.")
         return
     
-    experience_level = st.sidebar.selectbox("Training Experience:", ["Beginner", "Intermediate", "Advanced"], key="experience_level")
+    experience_level = st.sidebar.selectbox("Training Experience:", 
+                                          ["Beginner (< 1 year)", "Intermediate (1-2 years)", "Experienced (2+ years)"], 
+                                          key="experience_level")
     
     percentiles = get_percentile_targets(gender)
     suggested_almi = find_next_percentile(current_almi, percentiles)
@@ -286,9 +346,15 @@ def main():
         st.sidebar.error("Invalid target ALMI input.")
         return
     
+    # Display gain rate information
+    min_gain, max_gain = get_annual_alm_gain_range(gender, experience_level)
+    st.sidebar.markdown("---")
+    st.sidebar.markdown(f"**Expected Annual ALM Gain:**")
+    st.sidebar.markdown(f"{min_gain} - {max_gain} lbs/year")
+    
     st.title("DEXA ALMI Goal Calculator")
     with st.container():
-        st.markdown("Analyze your ALMI from DEXA scans, set goals, and get realistic timelines. *Disclaimer: Consult a healthcare provider for personalized advice.*")
+        st.markdown("Analyze your ALMI from DEXA scans, set goals, and get realistic timelines based on research-backed gain rates. *Disclaimer: Consult a healthcare provider for personalized advice.*")
     
     try:
         current_alm_kg = calculate_alm_from_almi(current_almi, height_m)
@@ -304,14 +370,17 @@ def main():
             mass_needed_kg = max(0, percentile_alm_kg - current_alm_kg)
             mass_needed_lbs = kg_to_lbs(mass_needed_kg)
             
-            fig_timeline, months = create_progress_timeline_chart(mass_needed_lbs, experience_level)
+            fig_timeline, (min_months, max_months) = create_progress_timeline_chart(mass_needed_lbs, gender, experience_level)
             
             if mass_needed_lbs <= 0:
                 mass_str = "Achieved"
                 months_str = "Achieved"
             else:
                 mass_str = f"{mass_needed_lbs:.1f}"
-                months_str = f"{months:.1f}"
+                if max_months >= 120:
+                    months_str = f"{min_months:.1f} - 120+"
+                else:
+                    months_str = f"{min_months:.1f} - {max_months:.1f}"
             
             if perc == "75th percentile":
                 fig_timeline_short = fig_timeline
@@ -321,8 +390,8 @@ def main():
             results_data.append({
                 "Percentile": perc,
                 "Target ALMI": f"{percentile_almi:.1f} kg/m²",
-                "Lean Mass Needed (lbs)": mass_str,
-                "Est. Time (months)": months_str
+                "ALM Needed (lbs)": mass_str,
+                "Timeline (months)": months_str
             })
         
         results_df = pd.DataFrame(results_data)
@@ -334,7 +403,7 @@ def main():
         target_alm_kg = calculate_alm_from_almi(target_almi, height_m)
         mass_needed_kg = max(0, target_alm_kg - current_alm_kg)
         mass_needed_lbs = kg_to_lbs(mass_needed_kg)
-        fig_custom, months_custom = create_progress_timeline_chart(mass_needed_lbs, experience_level)
+        fig_custom, (min_months_custom, max_months_custom) = create_progress_timeline_chart(mass_needed_lbs, gender, experience_level)
         
         with st.container():
             st.subheader("Custom Target")
@@ -343,9 +412,13 @@ def main():
             else:
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.metric("Target Lean Mass Needed", f"{mass_needed_lbs:.1f} lbs")
+                    st.metric("Target ALM Needed", f"{mass_needed_lbs:.1f} lbs")
                 with col2:
-                    st.metric("Estimated Time to Target", f"{months_custom:.1f} months")
+                    if max_months_custom >= 120:
+                        timeline_display = f"{min_months_custom:.1f} - 120+ months"
+                    else:
+                        timeline_display = f"{min_months_custom:.1f} - {max_months_custom:.1f} months"
+                    st.metric("Estimated Timeline", timeline_display)
                 st.plotly_chart(fig_custom, use_container_width=True)
         
         # Display percentile chart
@@ -369,7 +442,24 @@ def main():
                     st.plotly_chart(fig_timeline_long, use_container_width=True)
         
         with st.container():
-            st.markdown("*Note: Gain rates are approximate (Beginner: 1.5 lbs/month ALM, Intermediate: 0.75, Advanced: 0.375). Adjust for age/diet/training. ALMI declines ~1% per decade after 30; consider age in goals.*")
+            st.markdown("---")
+            st.markdown("**Annual ALM Gain Rates by Experience Level:**")
+            
+            # Create a table showing the gain rates
+            gain_table_data = []
+            for level in ["Beginner (< 1 year)", "Intermediate (1-2 years)", "Experienced (2+ years)"]:
+                male_min, male_max = get_annual_alm_gain_range("Male", level)
+                female_min, female_max = get_annual_alm_gain_range("Female", level)
+                gain_table_data.append({
+                    "Experience Level": level,
+                    "Male ALM (lbs/year)": f"{male_min} - {male_max}",
+                    "Female ALM (lbs/year)": f"{female_min} - {female_max}"
+                })
+            
+            gain_df = pd.DataFrame(gain_table_data)
+            st.dataframe(style_dataframe(gain_df), use_container_width=True)
+            
+            st.markdown("*Rates assume progressive overload, 0.75-1g protein/lb body weight, and slight caloric surplus. Males typically gain more due to higher testosterone; progress slows with experience. ALMI may decline ~1% per decade after 30.*")
     
     except Exception as e:
         st.error(f"An error occurred: {str(e)}. Please check your inputs and try again.")
